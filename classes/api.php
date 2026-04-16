@@ -51,11 +51,17 @@ class api {
         ?int $ttlseconds = null,
         string $purpose = 'login'
     ): string {
-        throw new \coding_exception('not implemented');
+        $tm = new token_manager();
+        return $tm->create_token($userid, $ttlseconds, $purpose);
     }
 
     /**
      * Generate a complete login URL for a user.
+     *
+     * When $wantsurl is null, the wantsurl parameter is omitted from the
+     * returned URL entirely (not set to an empty string). When $wantsurl
+     * is provided but fails PARAM_LOCALURL validation (e.g., external URL),
+     * it is silently dropped.
      *
      * @param int $userid The target user ID.
      * @param int|null $ttlseconds TTL override; null uses the configured default.
@@ -70,7 +76,19 @@ class api {
         ?\moodle_url $wantsurl = null,
         string $purpose = 'login'
     ): \moodle_url {
-        throw new \coding_exception('not implemented');
+        $token = self::generate_token_for_user($userid, $ttlseconds, $purpose);
+
+        $params = ['token' => $token];
+
+        if ($wantsurl !== null) {
+            $raw = $wantsurl->out(false);
+            $local = clean_param($raw, PARAM_LOCALURL);
+            if (!empty($local)) {
+                $params['wantsurl'] = $local;
+            }
+        }
+
+        return new \moodle_url('/auth/magiclink/verify.php', $params);
     }
 
     /**
@@ -82,6 +100,7 @@ class api {
      * @return int Number of tokens revoked.
      */
     public static function revoke_user_tokens(int $userid): int {
-        throw new \coding_exception('not implemented');
+        $tm = new token_manager();
+        return $tm->revoke_all_for_user($userid);
     }
 }

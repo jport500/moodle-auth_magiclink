@@ -70,6 +70,45 @@ class api_test extends \advanced_testcase {
     }
 
     /**
+     * Test generate_login_url_for_user with null wantsurl omits the param entirely.
+     */
+    public function test_generate_login_url_null_wantsurl_omitted(): void {
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $url = api::generate_login_url_for_user($user->id);
+        $this->assertNull($url->get_param('wantsurl'));
+        $this->assertStringNotContainsString('wantsurl', $url->out(false));
+    }
+
+    /**
+     * Test generate_login_url_for_user accepts a valid local wantsurl.
+     */
+    public function test_generate_login_url_accepts_local_wantsurl(): void {
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $url = api::generate_login_url_for_user(
+            $user->id,
+            null,
+            new \moodle_url('/course/view.php', ['id' => 5])
+        );
+        $this->assertNotEmpty($url->get_param('wantsurl'));
+    }
+
+    /**
+     * Test generate_login_url_for_user rejects protocol-relative URLs.
+     */
+    public function test_generate_login_url_rejects_protocol_relative(): void {
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $url = api::generate_login_url_for_user(
+            $user->id,
+            null,
+            new \moodle_url('//evil.com/path')
+        );
+        $this->assertNull($url->get_param('wantsurl'));
+    }
+
+    /**
      * Test revoke_user_tokens is idempotent.
      */
     public function test_revoke_user_tokens_idempotent(): void {
