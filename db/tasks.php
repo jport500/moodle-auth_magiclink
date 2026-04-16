@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for auth_magiclink.
+ * Scheduled task definitions for auth_magiclink.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
@@ -24,8 +24,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026051601;
-$plugin->requires  = 2024040100;
-$plugin->component = 'auth_magiclink';
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v3.0-dev';
+$tasks = [
+    [
+        'classname' => 'auth_magiclink\task\prune_expired_tokens',
+        'blocking' => 0,
+        'minute' => '0',
+        'hour' => '4',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ],
+];

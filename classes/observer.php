@@ -17,9 +17,10 @@
 /**
  * Event observer for auth_magiclink.
  *
- * Revokes active magic link tokens when user state changes
- * (updated, deleted, password changed) to prevent stale tokens
- * from granting access to suspended or deleted accounts.
+ * Revokes active magic link tokens when user state changes in ways
+ * that should invalidate authentication (suspension, deletion,
+ * password change, auth method change). Profile-only edits (name,
+ * timezone, avatar) are deliberately ignored.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
@@ -35,13 +36,30 @@ class observer {
     /**
      * Handle user_updated event.
      *
-     * Revokes tokens if the user was suspended or auth method changed.
+     * Revokes tokens only if the user is now suspended or their auth
+     * method is no longer 'magiclink'. Profile-only edits are ignored
+     * to avoid UX regressions (user changes timezone, tokens survive).
+     *
+     * The event provides no indication of which fields changed
+     * (create_from_userid only sets objectid/context), so we check
+     * the current user record state.
      *
      * @param \core\event\user_updated $event The event instance.
      * @return void
      */
     public static function user_updated(\core\event\user_updated $event): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $userid = $event->objectid;
+        $user = $DB->get_record('user', ['id' => $userid]);
+        if (!$user) {
+            return;
+        }
+
+        if ((int)$user->suspended === 1 || $user->auth !== 'magiclink') {
+            $tm = new token_manager();
+            $tm->revoke_all_for_user($userid);
+        }
     }
 
     /**
@@ -53,18 +71,22 @@ class observer {
      * @return void
      */
     public static function user_deleted(\core\event\user_deleted $event): void {
-        throw new \coding_exception('not implemented');
+        $tm = new token_manager();
+        $tm->revoke_all_for_user($event->objectid);
     }
 
     /**
      * Handle user_password_updated event.
      *
-     * Revokes all tokens — password change should invalidate magic links.
+     * Revokes all tokens. A password change suggests the user or an
+     * admin wants to re-assert identity — outstanding magic links
+     * should not bypass that intent.
      *
      * @param \core\event\user_password_updated $event The event instance.
      * @return void
      */
     public static function user_password_updated(\core\event\user_password_updated $event): void {
-        throw new \coding_exception('not implemented');
+        $tm = new token_manager();
+        $tm->revoke_all_for_user($event->relateduserid);
     }
 }

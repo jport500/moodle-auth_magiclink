@@ -79,6 +79,7 @@ $string['restrictions'] = 'Restrictions';
 $string['revokeconfirmation'] = 'Are you sure you want to revoke this link before it expires? It will no longer be able to be used to log in to the site.';
 $string['revokemodal'] = 'Revoke link';
 $string['sendlink'] = 'Send Magic Link';
+$string['task_prune_expired_tokens'] = 'Prune expired magic link tokens';
 $string['token_status_unused'] = 'Unused';
 $string['token_status_used'] = 'Used';
 $string['tokenexpired'] = 'This link has expired. Please request a new one.';
