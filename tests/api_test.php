@@ -24,15 +24,12 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for {@see api}.
  *
  * @covers \auth_magiclink\api
  */
-class api_test extends \advanced_testcase {
-
+final class api_test extends \advanced_testcase {
     /**
      * Test generate_token_for_user returns a valid token.
      */

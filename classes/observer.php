@@ -28,13 +28,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Observes core user events and revokes tokens as needed.
  */
 class observer {
-
     /**
      * Handle user_updated event.
      *

@@ -27,13 +27,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Rate limiter for magic link token requests.
  */
 class rate_limiter {
-
     /** @var int Default max requests per email per window. */
     const EMAIL_LIMIT = 3;
 
@@ -129,7 +126,7 @@ class rate_limiter {
             return 0;
         }
         $cutoff = $now - $window;
-        $recent = array_filter($timestamps, function(int $ts) use ($cutoff): bool {
+        $recent = array_filter($timestamps, function (int $ts) use ($cutoff): bool {
             return $ts >= $cutoff;
         });
         return count($recent);
@@ -151,7 +148,7 @@ class rate_limiter {
             $timestamps = [];
         }
         // Prune old entries while appending.
-        $timestamps = array_filter($timestamps, function(int $ts) use ($cutoff): bool {
+        $timestamps = array_filter($timestamps, function (int $ts) use ($cutoff): bool {
             return $ts >= $cutoff;
         });
         $timestamps[] = $now;

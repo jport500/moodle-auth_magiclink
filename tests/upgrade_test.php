@@ -24,13 +24,13 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for the v2 → v3 upgrade migration.
+ *
+ * @covers \auth_magiclink\token_manager
+ * @covers \auth_magiclink\api
  */
-class upgrade_test extends \advanced_testcase {
-
+final class upgrade_test extends \advanced_testcase {
     /**
      * Test that after upgrade, all pre-existing tokens have used=1.
      */

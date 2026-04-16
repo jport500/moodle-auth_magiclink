@@ -27,13 +27,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Structured audit logging for magic link events.
  */
 class audit {
-
     /**
      * Write an audit log entry.
      *

@@ -24,15 +24,12 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for {@see rate_limiter}.
  *
  * @covers \auth_magiclink\rate_limiter
  */
-class rate_limiter_test extends \advanced_testcase {
-
+final class rate_limiter_test extends \advanced_testcase {
     /**
      * Test that requests under the limit are allowed.
      */

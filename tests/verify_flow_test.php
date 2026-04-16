@@ -24,16 +24,13 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Integration tests across token_manager and api for the verify flow.
  *
  * @covers \auth_magiclink\token_manager
  * @covers \auth_magiclink\api
  */
-class verify_flow_test extends \advanced_testcase {
-
+final class verify_flow_test extends \advanced_testcase {
     /**
      * Test full happy path: generate → verify → user returned.
      */

@@ -24,15 +24,12 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for {@see domain_filter}.
  *
  * @covers \auth_magiclink\domain_filter
  */
-class domain_filter_test extends \advanced_testcase {
-
+final class domain_filter_test extends \advanced_testcase {
     /**
      * Test that an empty allowlist permits all domains.
      */

@@ -24,15 +24,12 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for {@see token_manager}.
  *
  * @covers \auth_magiclink\token_manager
  */
-class token_manager_test extends \advanced_testcase {
-
+final class token_manager_test extends \advanced_testcase {
     /**
      * Test that create_token returns a 64-char hex string.
      */

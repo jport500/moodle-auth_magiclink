@@ -27,13 +27,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Composes and sends magic link emails.
  */
 class email_composer {
-
     /**
      * Send a magic link login email to a user.
      *

@@ -24,15 +24,12 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * PHPUnit tests for {@see email_composer}.
  *
  * @covers \auth_magiclink\email_composer
  */
-class email_composer_test extends \advanced_testcase {
-
+final class email_composer_test extends \advanced_testcase {
     /**
      * Test that send_login_email sends an email successfully.
      */

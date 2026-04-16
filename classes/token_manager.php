@@ -28,13 +28,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Manages the full token lifecycle: create, verify, revoke, prune.
  */
 class token_manager {
-
     /** @var int Token string length in hex characters. */
     const TOKEN_HEX_LENGTH = 64;
 

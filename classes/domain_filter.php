@@ -27,13 +27,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Validates email domains against the configured allowlist.
  */
 class domain_filter {
-
     /**
      * Check whether the email's domain is permitted.
      *
@@ -55,7 +52,7 @@ class domain_filter {
         }
         $userdomain = \core_text::strtolower(trim($parts[1]));
 
-        $allowedlist = array_map(function(string $domain): string {
+        $allowedlist = array_map(function (string $domain): string {
             return \core_text::strtolower(trim($domain));
         }, explode(',', $alloweddomains));
 

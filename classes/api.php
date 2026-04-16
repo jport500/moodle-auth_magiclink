@@ -27,13 +27,10 @@
 
 namespace auth_magiclink;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Public API for generating and managing magic link tokens.
  */
 class api {
-
     /** @var int Maximum TTL for any token. */
     const MAX_TTL_SECONDS = token_manager::MAX_TTL_SECONDS;
 
