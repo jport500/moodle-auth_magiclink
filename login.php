@@ -15,115 +15,82 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Magic link login page and form handler.
+ * Magic link login controller.
  *
- * Handles the email submission form and sends magic link emails.
+ * Thin controller that delegates to service classes. Every outcome
+ * path produces the same user-visible message to defeat email enumeration.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require('../../config.php');
-require_once("$CFG->libdir/authlib.php");
-require_once("$CFG->dirroot/auth/magiclink/lib.php");
+// @codingStandardsIgnoreLine
+require(__DIR__ . '/../../config.php');
 
-$context = context_system::instance();
-$PAGE->set_context($context);
-
-// Check if already logged in.
+// Preserved v2 behavior: redirect already-logged-in users to wwwroot.
 if (isloggedin() && !isguestuser()) {
     redirect($CFG->wwwroot);
 }
 
 $email = optional_param('email', '', PARAM_EMAIL);
+$loginurl = new moodle_url('/login/index.php');
 
-// Handle POST request.
-if ($email) {
-    $user = $DB->get_record('user', ['email' => $email, 'deleted' => 0, 'suspended' => 0]);
-    $ip = getremoteaddr();
-
-    // Domain restriction check.
-    $alloweddomains = get_config('auth_magiclink', 'alloweddomains');
-    if (!empty($alloweddomains)) {
-        $userdomain = strtolower((explode('@', $email))[1]);
-
-        // Remove whitespace and make lowercase before exploding on comma.
-        $allowedlist = array_map(function ($domain) {
-            return strtolower(trim($domain));
-        }, explode(',', $alloweddomains));
-
-        if (!in_array($userdomain, $allowedlist)) {
-            add_to_audit_log($user ? $user->id : 0, $mail, 'domain_blocked', "Domain '$userdomain' not allowed.", $ip);
-
-            redirect(
-                new moodle_url('/login/index.php'),
-                get_string('domainnotallowed', 'auth_magiclink'),
-                null,
-                \core\output\notification::NOTIFY_ERROR
-            );
-        }
-    }
-
-    if ($user) {
-        // Generate token.
-        $token = bin2hex(random_bytes(32));
-        $expiry = time() + (15 * 60);
-
-        $record = new stdClass();
-        $record->userid = $user->id;
-        $record->token = $token;
-        $record->expires = $expiry;
-        $record->used = 0;
-        $record->timecreated = time();
-
-        $DB->insert_record('auth_magiclink_token', $record);
-
-        add_to_audit_log($user->id, $email, 'send_link', "Magic link generated.", $ip);
-
-        // Send email with custom template.
-        $supportuser = core_user::get_support_user();
-        $verifyurl = new moodle_url('/auth/magiclink/verify.php', ['token' => $token]);
-
-        $subject = get_config('auth_magiclink', 'emailsubject');
-        if (empty($subject)) {
-            $subject = get_string('emailsubject_default', 'auth_magiclink');
-        }
-
-        $body = get_config('auth_magiclink', 'emailbody');
-        if (empty($body)) {
-            $body = get_string('emailbody_default', 'auth_magiclink');
-        }
-
-        $linkurl = $verifyurl->out(false);
-        $textreplacements = [
-            '{$a->firstname}' => $user->firstname,
-            '{$a->lastname}' => $user->lastname,
-            '{$a->link}' => htmlspecialchars($linkurl),
-            '{$a->loginlink}' => '<a href="' . htmlspecialchars($linkurl) . '">Login</a>',
-            '{$a->sitename}' => $SITE->fullname,
-            '{$a->expiration}' => '15',
-        ];
-
-        $bodytext = strtr($body, $textreplacements);
-        $user->mailformat = 1;
-        email_to_user($user, $supportuser, $subject, $bodytext);
-
-        redirect(
-            new moodle_url('/login/index.php'),
-            get_string('linksent', 'auth_magiclink', $email),
-            null,
-            \core\output\notification::NOTIFY_SUCCESS
-        );
-    } else {
-        add_to_audit_log(0, $email, 'login_failed', "User not found.", $ip);
-        redirect(
-            new moodle_url('/login/index.php'),
-            get_string('invalidemail', 'auth_magiclink'),
-            null,
-            \core\output\notification::NOTIFY_ERROR
-        );
-    }
+// Preserved v2 behavior: GET requests (or POST with empty email) redirect to login page.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($email)) {
+    redirect($loginurl);
 }
 
-redirect(new moodle_url('/login/index.php'));
+// CHANGED from v2: CSRF protection — requires sesskey in form submission.
+require_sesskey();
+
+$ip = getremoteaddr();
+$uniform = get_string('linksent_uniform', 'auth_magiclink');
+
+// CHANGED from v2: rate limiting on magic-link requests.
+$limiter = new \auth_magiclink\rate_limiter();
+if (!$limiter->is_allowed($email, $ip)) {
+    \auth_magiclink\audit::log(null, $email, 'rate_limited', '', $ip);
+    redirect($loginurl, $uniform, null, \core\output\notification::NOTIFY_INFO);
+}
+
+// Preserved v2 behavior: domain restriction check.
+$filter = new \auth_magiclink\domain_filter();
+if (!$filter->is_allowed($email)) {
+    // CHANGED from v2: uses $email (fixes S1 $mail typo), uniform message (fixes S3).
+    \auth_magiclink\audit::log(null, $email, 'domain_blocked', '', $ip);
+    $limiter->record($email, $ip);
+    redirect($loginurl, $uniform, null, \core\output\notification::NOTIFY_INFO);
+}
+
+// Preserved v2 behavior: user lookup filters deleted=0, suspended=0.
+// CHANGED from v2: also requires auth='magiclink' to prevent magic-link
+// capture of accounts using other auth methods (e.g., admin with auth='manual').
+$user = $DB->get_record('user', ['email' => $email, 'deleted' => 0, 'suspended' => 0]);
+if (!$user || $user->auth !== 'magiclink') {
+    $action = !$user ? 'no_user' : 'wrong_auth';
+    \auth_magiclink\audit::log($user->id ?? null, $email, $action, '', $ip);
+    $limiter->record($email, $ip);
+    // CHANGED from v2: uniform message regardless of outcome (fixes S3).
+    redirect($loginurl, $uniform, null, \core\output\notification::NOTIFY_INFO);
+}
+
+// Preserved v2 behavior: generate token, send email, audit log, redirect to login page.
+// CHANGED from v2: token is SHA-256 hashed before storage (S4), email has
+// separate plaintext/HTML bodies (Q3), user fields HTML-escaped (S7).
+try {
+    $tm = new \auth_magiclink\token_manager();
+    $token = $tm->create_token($user->id, null, 'login');
+
+    $composer = new \auth_magiclink\email_composer();
+    $composer->send_login_email($user, $token);
+
+    \auth_magiclink\audit::log($user->id, $email, 'send_link', '', $ip);
+    $limiter->record($email, $ip);
+} catch (\Exception $e) {
+    \auth_magiclink\audit::log($user->id, $email, 'send_failed', $e->getMessage(), $ip);
+    $limiter->record($email, $ip);
+}
+
+// CHANGED from v2: uniform message for all outcomes (fixes S3 email enumeration).
+redirect($loginurl, $uniform, null, \core\output\notification::NOTIFY_INFO);

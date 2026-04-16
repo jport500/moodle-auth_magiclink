@@ -48,23 +48,28 @@ class auth_plugin_magiclink extends auth_plugin_base {
      * Hook to add the magic link form to the login page.
      *
      * Injects the magic link email form and JavaScript for form toggling
-     * on the standard Moodle login page.
+     * on the standard Moodle login page. Passes sesskey for CSRF protection.
      *
      * @return void
      */
     public function loginpage_hook() {
         global $CFG, $PAGE, $OUTPUT;
 
-        // Only show on the actual login page.
+        // Preserved v2 behavior: only show on the actual login page.
         if ($PAGE->pagetype !== 'login-index') {
             return;
         }
 
+        // CHANGED from v2: pass sesskey in template context for CSRF protection.
         $magiclinkhtml = $OUTPUT->render_from_template(
             'auth_magiclink/login_form',
-            ['actionurl' => "$CFG->wwwroot/auth/magiclink/login.php"]
+            [
+                'actionurl' => "$CFG->wwwroot/auth/magiclink/login.php",
+                'sesskey' => sesskey(),
+            ]
         );
 
+        // Preserved v2 behavior: inject via AMD JS for progressive enhancement.
         $PAGE->requires->js_call_amd('auth_magiclink/login', 'init', [$magiclinkhtml]);
     }
 

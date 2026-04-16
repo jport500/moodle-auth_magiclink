@@ -55,6 +55,7 @@ $string['linkdeleted'] = 'Link deleted.';
 $string['linkextended'] = 'Link extended by 15 minutes.';
 $string['linkrevoked'] = 'Link revoked successfully.';
 $string['linksent'] = 'We have sent a login link to <b>{$a}</b>. It will expire in 15 minutes.';
+$string['linksent_uniform'] = 'If that email address is registered, a login link has been sent. Please check your inbox.';
 $string['loginhere'] = 'Log in here';
 $string['managelinks'] = 'Manage Links';
 $string['orloginwithmagiclink'] = 'Or log in with magic link';
