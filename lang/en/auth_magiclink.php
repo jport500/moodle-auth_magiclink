@@ -67,3 +67,10 @@ $string['restrictions'] = 'Restrictions';
 $string['alloweddomains'] = 'Allowed Domains';
 $string['alloweddomains_desc'] = 'Comma-separated list of allowed email domains (e.g. school.edu, university.com). Leave empty to allow all.';
 $string['domainnotallowed'] = 'Login is restricted to specific email domains. This email is not allowed.';
+
+// Token manager error strings.
+$string['tokeninvalid'] = 'This link is invalid. Please request a new one.';
+$string['tokenexpired'] = 'This link has expired. Please request a new one.';
+$string['tokenused'] = 'This link has already been used. Please request a new one.';
+$string['userinactive'] = 'This account is no longer active.';
+$string['invaliduser'] = 'Cannot generate a login link for this user.';

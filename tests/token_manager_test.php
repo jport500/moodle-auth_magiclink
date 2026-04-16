@@ -62,8 +62,11 @@ class token_manager_test extends \advanced_testcase {
      * Test that create_token rejects a deleted user.
      */
     public function test_create_token_rejects_deleted_user(): void {
+        global $DB;
         $this->resetAfterTest();
-        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink', 'deleted' => 1]);
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        // Bypass delete_user() to avoid triggering the observer stub.
+        $DB->set_field('user', 'deleted', 1, ['id' => $user->id]);
         $tm = new token_manager();
         $this->expectException(\moodle_exception::class);
         $tm->create_token($user->id, null, 'login');

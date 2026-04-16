@@ -57,7 +57,24 @@ class token_manager {
      * @throws \moodle_exception If user is invalid.
      */
     public function create_token(int $userid, ?int $ttlseconds, string $purpose): string {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $this->validate_user($userid);
+
+        $ttl = $this->resolve_ttl($ttlseconds);
+
+        $this->revoke_all_for_user($userid);
+
+        $plaintext = $this->generate_plaintext();
+        $record = new \stdClass();
+        $record->userid = $userid;
+        $record->token = $this->hash($plaintext);
+        $record->expires = time() + $ttl;
+        $record->used = 0;
+        $record->timecreated = time();
+        $DB->insert_record('auth_magiclink_token', $record);
+
+        return $plaintext;
     }
 
     /**
@@ -71,11 +88,37 @@ class token_manager {
      * @throws \moodle_exception tokeninvalid, tokenexpired, tokenused, or userinactive.
      */
     public function verify_and_consume(string $token): \stdClass {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $hash = $this->hash($token);
+        $record = $DB->get_record('auth_magiclink_token', ['token' => $hash]);
+
+        if (!$record) {
+            throw new \moodle_exception('tokeninvalid', 'auth_magiclink');
+        }
+        if ((int)$record->used !== 0) {
+            throw new \moodle_exception('tokenused', 'auth_magiclink');
+        }
+        if ((int)$record->expires <= time()) {
+            throw new \moodle_exception('tokenexpired', 'auth_magiclink');
+        }
+
+        $user = $DB->get_record('user', [
+            'id' => $record->userid,
+            'deleted' => 0,
+            'suspended' => 0,
+        ]);
+        if (!$user || isguestuser($user)) {
+            throw new \moodle_exception('userinactive', 'auth_magiclink');
+        }
+
+        $DB->set_field('auth_magiclink_token', 'used', 1, ['id' => $record->id]);
+
+        return $user;
     }
 
     /**
-     * Revoke all active (unused, unexpired) tokens for a user.
+     * Revoke all active (unused) tokens for a user.
      *
      * Idempotent — safe to call even if no tokens exist.
      *
@@ -83,7 +126,21 @@ class token_manager {
      * @return int Number of tokens revoked.
      */
     public function revoke_all_for_user(int $userid): int {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $count = $DB->count_records('auth_magiclink_token', [
+            'userid' => $userid,
+            'used' => 0,
+        ]);
+
+        if ($count > 0) {
+            $DB->set_field('auth_magiclink_token', 'used', 1, [
+                'userid' => $userid,
+                'used' => 0,
+            ]);
+        }
+
+        return $count;
     }
 
     /**
@@ -95,7 +152,61 @@ class token_manager {
      * @return int Number of rows deleted.
      */
     public function prune_expired(int $olderthansec = 2592000): int {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $cutoff = time() - $olderthansec;
+        $count = $DB->count_records_select(
+            'auth_magiclink_token',
+            'expires < :cutoff',
+            ['cutoff' => $cutoff]
+        );
+
+        if ($count > 0) {
+            $DB->delete_records_select(
+                'auth_magiclink_token',
+                'expires < :cutoff',
+                ['cutoff' => $cutoff]
+            );
+        }
+
+        return $count;
+    }
+
+    /**
+     * Validate that a user ID references a usable account.
+     *
+     * @param int $userid The user ID to validate.
+     * @throws \moodle_exception If the user is deleted, suspended, guest, or nonexistent.
+     */
+    private function validate_user(int $userid): void {
+        global $DB;
+
+        $user = $DB->get_record('user', [
+            'id' => $userid,
+            'deleted' => 0,
+            'suspended' => 0,
+        ]);
+
+        if (!$user || isguestuser($user)) {
+            throw new \moodle_exception('invaliduser', 'auth_magiclink');
+        }
+    }
+
+    /**
+     * Resolve the effective TTL from caller, config, or default.
+     *
+     * @param int|null $ttlseconds Caller-provided TTL, or null.
+     * @return int Effective TTL in seconds, capped at MAX_TTL_SECONDS.
+     */
+    private function resolve_ttl(?int $ttlseconds): int {
+        if ($ttlseconds === null) {
+            $configured = get_config('auth_magiclink', 'tokenttlseconds');
+            $ttl = !empty($configured) ? (int)$configured : self::DEFAULT_TTL_SECONDS;
+        } else {
+            $ttl = $ttlseconds;
+        }
+
+        return min(max($ttl, 1), self::MAX_TTL_SECONDS);
     }
 
     /**
