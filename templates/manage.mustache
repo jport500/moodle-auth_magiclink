@@ -21,19 +21,21 @@
     Plugin management template.
 
     Context variables required for this template:
-    * tokens - Array of token objects
-    * headers - Table header labels
     * hastokens - Boolean if tokens exist
-    * audits - Array of audit log entries
-    * headers - Table header labels
+    * tokens - Array of token objects
+    * notokens - String for empty tokens message
     * hasaudits - Boolean if audits exist
+    * audits - Array of audit log entries
+    * noaudits - String for empty audits message
 
     Example context (json):
     {
         "hastokens": true,
-        "tokens": []
+        "tokens": [],
+        "notokens": "No tokens found.",
         "hasaudits": true,
-        "audits": []
+        "audits": [],
+        "noaudits": "No audit entries."
     }
 }}
 
@@ -44,12 +46,12 @@
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th scope="col">User</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Created</th>
-                    <th scope="col">Expires</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Actions</th>
+                    <th scope="col">{{#str}} col_user, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_email, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_created, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_expires, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_status, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_actions, auth_magiclink {{/str}}</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,15 +61,15 @@
                     <td>{{email}}</td>
                     <td>{{#userdate}} {{timecreated}}, %m/%d/%y %H:%M {{/userdate}}</td>
                     <td>{{#userdate}} {{expires}}, %m/%d/%y %H:%M {{/userdate}}</td>
-                    <td class="status" data-status="{{used}}"><span>{{used}}</span></td>
+                    <td class="auth-magiclink-status" data-status="{{statuskey}}"><span>{{statuslabel}}</span></td>
                     <td>
                         {{#actions}}
-                            <button 
-                                class="action btn" 
-                                data-action="{{.}}" 
+                            <button
+                                class="auth-magiclink-action btn"
+                                data-action="{{action}}"
                                 data-id="{{id}}"
                             >
-                                {{.}}
+                                {{action}}
                             </button>
                         {{/actions}}
                     </td>
@@ -91,18 +93,18 @@
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th scope="col">User</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Action</th>
-                    <th scope="col">IP Address</th>
-                    <th scope="col">Info</th>
-                    <th scope="col">Timestamp</th>
+                    <th scope="col">{{#str}} col_user, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_email, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_auditaction, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_ip, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_info, auth_magiclink {{/str}}</th>
+                    <th scope="col">{{#str}} col_timestamp, auth_magiclink {{/str}}</th>
                 </tr>
             </thead>
             <tbody>
                 {{#audits}}
                 <tr>
-                    <td>{{firstname}} {{lastname}}</td>
+                    <td>{{fullname}}</td>
                     <td>{{email}}</td>
                     <td>{{action}}</td>
                     <td>{{ip}}</td>
@@ -120,34 +122,3 @@
         {{/hasaudits}}
     </div>
 </div>
-
-<style>
-    h3 {
-        margin-bottom: 1rem;
-    }
-    .action {
-        padding: 0.1rem 0.5rem;
-        background: var(--bs-gray-600);
-        border-radius: 0.5rem;
-        color: white !important;
-        text-transform: capitalize;
-    }   
-    .action:hover {
-        filter: brightness(0.85);
-    }
-    td.status {
-        text-transform: capitalize;
-    }
-    td.status[data-status="unused"] span {
-        font-weight: bold;
-    }
-    .action[data-action="delete"] {
-        background: var(--bs-gray-600);
-    }
-    .action[data-action="revoke"] {
-        background: var(--bs-red);
-    }
-    .action[data-action="extend"] {
-        background: var(--bs-green);
-    }
-</style>

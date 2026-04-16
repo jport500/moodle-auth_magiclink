@@ -24,6 +24,14 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+// Register the manage page as an admin external page.
+$ADMIN->add('authsettings', new admin_externalpage(
+    'auth_magiclink_manage',
+    get_string('managelinks', 'auth_magiclink'),
+    new moodle_url('/auth/magiclink/manage.php'),
+    'auth/magiclink:manage'
+));
+
 if ($ADMIN->fulltree) {
     // Link to management page.
     $manageurl = new moodle_url('/auth/magiclink/manage.php');
