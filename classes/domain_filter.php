@@ -44,6 +44,21 @@ class domain_filter {
      * @return bool True if the domain is allowed.
      */
     public function is_allowed(string $email): bool {
-        throw new \coding_exception('not implemented');
+        $alloweddomains = get_config('auth_magiclink', 'alloweddomains');
+        if (empty($alloweddomains)) {
+            return true;
+        }
+
+        $parts = explode('@', $email);
+        if (count($parts) !== 2 || empty($parts[1])) {
+            return false;
+        }
+        $userdomain = \core_text::strtolower(trim($parts[1]));
+
+        $allowedlist = array_map(function(string $domain): string {
+            return \core_text::strtolower(trim($domain));
+        }, explode(',', $alloweddomains));
+
+        return in_array($userdomain, $allowedlist, true);
     }
 }

@@ -74,3 +74,9 @@ $string['tokenexpired'] = 'This link has expired. Please request a new one.';
 $string['tokenused'] = 'This link has already been used. Please request a new one.';
 $string['userinactive'] = 'This account is no longer active.';
 $string['invaliduser'] = 'Cannot generate a login link for this user.';
+
+// Email composer strings.
+$string['loginhere'] = 'Log in here';
+
+// Cache strings.
+$string['cachedef_ratelimit'] = 'Rate limit counters for magic link requests';

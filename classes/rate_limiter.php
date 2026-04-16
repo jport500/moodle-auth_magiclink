@@ -56,7 +56,25 @@ class rate_limiter {
      * @return bool True if allowed, false if throttled.
      */
     public function is_allowed(string $email, string $ip): bool {
-        throw new \coding_exception('not implemented');
+        $cache = $this->get_cache();
+        $now = time();
+
+        $emaillimit = (int)(get_config('auth_magiclink', 'ratelimit_email') ?: self::EMAIL_LIMIT);
+        $emailwindow = (int)(get_config('auth_magiclink', 'ratelimit_window') ?: self::EMAIL_WINDOW);
+        $iplimit = (int)(get_config('auth_magiclink', 'ratelimit_ip') ?: self::IP_LIMIT);
+        $ipwindow = $emailwindow;
+
+        $emailcount = $this->count_recent($cache, 'email_' . md5($email), $now, $emailwindow);
+        if ($emailcount >= $emaillimit) {
+            return false;
+        }
+
+        $ipcount = $this->count_recent($cache, 'ip_' . md5($ip), $now, $ipwindow);
+        if ($ipcount >= $iplimit) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -67,7 +85,11 @@ class rate_limiter {
      * @return void
      */
     public function record(string $email, string $ip): void {
-        throw new \coding_exception('not implemented');
+        $cache = $this->get_cache();
+        $now = time();
+
+        $this->append_timestamp($cache, 'email_' . md5($email), $now);
+        $this->append_timestamp($cache, 'ip_' . md5($ip), $now);
     }
 
     /**
@@ -79,6 +101,60 @@ class rate_limiter {
      * @return void
      */
     public function reset(string $email): void {
-        throw new \coding_exception('not implemented');
+        $cache = $this->get_cache();
+        $cache->delete('email_' . md5($email));
+    }
+
+    /**
+     * Get the MUC cache instance.
+     *
+     * @return \cache The rate limit cache.
+     */
+    private function get_cache(): \cache {
+        return \cache::make('auth_magiclink', 'ratelimit');
+    }
+
+    /**
+     * Count timestamps within the given window.
+     *
+     * @param \cache $cache The cache instance.
+     * @param string $key The cache key.
+     * @param int $now Current timestamp.
+     * @param int $window Window size in seconds.
+     * @return int Number of recent entries.
+     */
+    private function count_recent(\cache $cache, string $key, int $now, int $window): int {
+        $timestamps = $cache->get($key);
+        if (!is_array($timestamps)) {
+            return 0;
+        }
+        $cutoff = $now - $window;
+        $recent = array_filter($timestamps, function(int $ts) use ($cutoff): bool {
+            return $ts >= $cutoff;
+        });
+        return count($recent);
+    }
+
+    /**
+     * Append a timestamp to a cache entry, pruning old entries.
+     *
+     * @param \cache $cache The cache instance.
+     * @param string $key The cache key.
+     * @param int $now Current timestamp.
+     * @return void
+     */
+    private function append_timestamp(\cache $cache, string $key, int $now): void {
+        $maxwindow = (int)(get_config('auth_magiclink', 'ratelimit_window') ?: self::EMAIL_WINDOW);
+        $cutoff = $now - $maxwindow;
+        $timestamps = $cache->get($key);
+        if (!is_array($timestamps)) {
+            $timestamps = [];
+        }
+        // Prune old entries while appending.
+        $timestamps = array_filter($timestamps, function(int $ts) use ($cutoff): bool {
+            return $ts >= $cutoff;
+        });
+        $timestamps[] = $now;
+        $cache->set($key, $timestamps);
     }
 }

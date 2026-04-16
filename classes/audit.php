@@ -45,6 +45,15 @@ class audit {
      * @return void
      */
     public static function log(?int $userid, string $email, string $action, string $info, string $ip): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $record = new \stdClass();
+        $record->userid = $userid ?? 0;
+        $record->email = $email;
+        $record->action = $action;
+        $record->info = $info;
+        $record->ip = $ip;
+        $record->timecreated = time();
+        $DB->insert_record('auth_magiclink_audit', $record);
     }
 }

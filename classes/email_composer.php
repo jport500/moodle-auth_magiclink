@@ -38,15 +38,55 @@ class email_composer {
      * Send a magic link login email to a user.
      *
      * User-controlled fields (firstname, lastname) are HTML-escaped in the
-     * HTML body. Plaintext and HTML bodies are passed to the correct
-     * email_to_user() parameters.
+     * HTML body and tag-stripped in the plaintext body. Plaintext and HTML
+     * bodies are passed to the correct email_to_user() parameters.
      *
      * @param \stdClass $user The recipient user record.
      * @param string $token The plaintext token for the magic link URL.
      * @return bool True if the email was sent successfully.
      */
     public function send_login_email(\stdClass $user, string $token): bool {
-        throw new \coding_exception('not implemented');
+        global $SITE;
+
+        $verifyurl = new \moodle_url('/auth/magiclink/verify.php', ['token' => $token]);
+        $linkurl = $verifyurl->out(false);
+        $ttl = self::format_ttl();
+
+        // Plaintext placeholders — strip HTML from user-controlled fields.
+        $textreplacements = [
+            '{$a->firstname}' => clean_param($user->firstname, PARAM_TEXT),
+            '{$a->lastname}' => clean_param($user->lastname, PARAM_TEXT),
+            '{$a->sitename}' => format_string($SITE->fullname),
+            '{$a->link}' => $linkurl,
+            '{$a->loginlink}' => $linkurl,
+            '{$a->expiration}' => $ttl,
+        ];
+
+        // HTML placeholders — escape user-controlled fields.
+        $htmlreplacements = [
+            '{$a->firstname}' => s($user->firstname),
+            '{$a->lastname}' => s($user->lastname),
+            '{$a->sitename}' => s(format_string($SITE->fullname)),
+            '{$a->link}' => s($linkurl),
+            '{$a->loginlink}' => \html_writer::link($verifyurl, get_string('loginhere', 'auth_magiclink')),
+            '{$a->expiration}' => $ttl,
+        ];
+
+        $subject = get_config('auth_magiclink', 'emailsubject');
+        if (empty($subject)) {
+            $subject = get_string('emailsubject_default', 'auth_magiclink');
+        }
+
+        $template = get_config('auth_magiclink', 'emailbody');
+        if (empty($template)) {
+            $template = get_string('emailbody_default', 'auth_magiclink');
+        }
+
+        $bodytext = strtr($template, $textreplacements);
+        $bodyhtml = text_to_html(strtr($template, $htmlreplacements), false, false, true);
+
+        $supportuser = \core_user::get_support_user();
+        return email_to_user($user, $supportuser, $subject, $bodytext, $bodyhtml);
     }
 
     /**
@@ -55,6 +95,8 @@ class email_composer {
      * @return string The TTL in minutes (e.g., "15").
      */
     public static function format_ttl(): string {
-        throw new \coding_exception('not implemented');
+        $ttlseconds = (int)(get_config('auth_magiclink', 'tokenttlseconds')
+            ?: token_manager::DEFAULT_TTL_SECONDS);
+        return (string)round($ttlseconds / 60);
     }
 }

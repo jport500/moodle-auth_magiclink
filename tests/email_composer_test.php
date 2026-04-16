@@ -57,15 +57,17 @@ class email_composer_test extends \advanced_testcase {
      * Test that HTML-special characters in user names are escaped in HTML body.
      */
     public function test_xss_in_username_escaped(): void {
+        global $DB;
         $this->resetAfterTest();
         $this->preventResetByRollback();
         $sink = $this->redirectEmails();
 
-        $user = $this->getDataGenerator()->create_user([
-            'auth' => 'magiclink',
-            'firstname' => '<img src=x onerror=alert(1)>',
-            'lastname' => '<script>alert(2)</script>',
-        ]);
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        // Inject XSS payload directly to bypass Moodle's create_user sanitisation.
+        $DB->set_field('user', 'firstname', '<img src=x onerror=alert(1)>', ['id' => $user->id]);
+        $DB->set_field('user', 'lastname', '<script>alert(2)</script>', ['id' => $user->id]);
+        $user = $DB->get_record('user', ['id' => $user->id]);
+
         $token = bin2hex(random_bytes(32));
 
         $composer = new email_composer();
