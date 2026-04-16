@@ -67,5 +67,6 @@ $string['revokemodal'] = 'Revoke link';
 $string['sendlink'] = 'Send Magic Link';
 $string['tokenexpired'] = 'This link has expired. Please request a new one.';
 $string['tokeninvalid'] = 'This link is invalid. Please request a new one.';
+$string['tokennotvalid'] = 'This login link is invalid or has expired. Please request a new one.';
 $string['tokenused'] = 'This link has already been used. Please request a new one.';
 $string['userinactive'] = 'This account is no longer active.';
