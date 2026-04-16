@@ -25,8 +25,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// @codingStandardsIgnoreLine
-require(__DIR__ . '/../../config.php');
+require('../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
 
 $action = optional_param('action', '', PARAM_ALPHA);

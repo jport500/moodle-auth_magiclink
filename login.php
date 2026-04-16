@@ -24,8 +24,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// @codingStandardsIgnoreLine
-require(__DIR__ . '/../../config.php');
+require('../../../config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
 
 // Preserved v2 behavior: redirect already-logged-in users to wwwroot.
 if (isloggedin() && !isguestuser()) {

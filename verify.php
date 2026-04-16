@@ -24,8 +24,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// @codingStandardsIgnoreLine
-require(__DIR__ . '/../../config.php');
+require('../../../config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
 
 $token = required_param('token', PARAM_ALPHANUM);
 $wantsurl = optional_param('wantsurl', '', PARAM_RAW);

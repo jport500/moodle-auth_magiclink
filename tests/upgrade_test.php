@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Tests for the upgrade path.
+ * Tests for the v2 → v3 upgrade migration.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
@@ -25,37 +25,86 @@
 namespace auth_magiclink;
 
 /**
- * PHPUnit tests for the v2 → v3 upgrade migration.
+ * PHPUnit tests for the upgrade path.
  *
  * @covers \auth_magiclink\token_manager
  * @covers \auth_magiclink\api
  */
 final class upgrade_test extends \advanced_testcase {
     /**
-     * Test that after upgrade, all pre-existing tokens have used=1.
+     * Test that the v3 migration invalidates all unused plaintext tokens.
+     *
+     * Inserts a mix of used and unused tokens with various expiry times,
+     * runs the upgrade function, and verifies:
+     * - All used=0 rows become used=1
+     * - Already used=1 rows remain used=1
+     * - No rows are deleted
      */
-    public function test_upgrade_invalidates_plaintext_tokens(): void {
-        global $DB;
+    public function test_upgrade_invalidates_all_unused_tokens(): void {
+        global $DB, $CFG;
         $this->resetAfterTest();
 
-        // Insert a fake v2 plaintext token.
-        $DB->insert_record('auth_magiclink_token', (object)[
-            'userid' => 2,
-            'token' => str_repeat('a', 64),
-            'expires' => time() + 3600,
-            'used' => 0,
-            'timecreated' => time(),
-        ]);
+        $now = time();
+        $baserecord = ['timecreated' => $now];
 
-        // Simulate the upgrade step.
-        $DB->set_field('auth_magiclink_token', 'used', 1, ['used' => 0]);
+        // Unused, not expired.
+        $DB->insert_record('auth_magiclink_token', (object)array_merge($baserecord, [
+            'userid' => 2, 'token' => str_repeat('a', 64),
+            'expires' => $now + 3600, 'used' => 0,
+        ]));
+        // Unused, already expired.
+        $DB->insert_record('auth_magiclink_token', (object)array_merge($baserecord, [
+            'userid' => 2, 'token' => str_repeat('b', 64),
+            'expires' => $now - 3600, 'used' => 0,
+        ]));
+        // Already used.
+        $DB->insert_record('auth_magiclink_token', (object)array_merge($baserecord, [
+            'userid' => 2, 'token' => str_repeat('c', 64),
+            'expires' => $now + 3600, 'used' => 1,
+        ]));
 
-        $record = $DB->get_record('auth_magiclink_token', ['token' => str_repeat('a', 64)]);
-        $this->assertEquals(1, (int)$record->used);
+        $this->assertEquals(3, $DB->count_records('auth_magiclink_token'));
+        $this->assertEquals(2, $DB->count_records('auth_magiclink_token', ['used' => 0]));
+
+        // Run the upgrade function with an old version that triggers the migration.
+        // Lower the installed version so upgrade_plugin_savepoint accepts the new savepoint.
+        $DB->set_field('config_plugins', 'value', '2026050705',
+            ['plugin' => 'auth_magiclink', 'name' => 'version']);
+        require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+        xmldb_auth_magiclink_upgrade(2026050705);
+
+        // All rows still present (no deletes).
+        $this->assertEquals(3, $DB->count_records('auth_magiclink_token'));
+        // All unused tokens are now used.
+        $this->assertEquals(0, $DB->count_records('auth_magiclink_token', ['used' => 0]));
+        $this->assertEquals(3, $DB->count_records('auth_magiclink_token', ['used' => 1]));
     }
 
     /**
-     * Test that new tokens created post-upgrade use SHA-256 hashes.
+     * Test that running upgrade with a version >= target is a no-op (idempotent).
+     */
+    public function test_upgrade_idempotent_when_current(): void {
+        global $DB, $CFG;
+        $this->resetAfterTest();
+
+        // Insert an unused token.
+        $DB->insert_record('auth_magiclink_token', (object)[
+            'userid' => 2, 'token' => str_repeat('d', 64),
+            'expires' => time() + 3600, 'used' => 0,
+            'timecreated' => time(),
+        ]);
+
+        require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
+        // Oldversion >= 2026051600: the migration block should NOT execute.
+        xmldb_auth_magiclink_upgrade(2026051600);
+
+        // Token remains unused.
+        $this->assertEquals(1, $DB->count_records('auth_magiclink_token', ['used' => 0]));
+    }
+
+    /**
+     * Test that new tokens created post-upgrade use SHA-256 hashes in DB.
      */
     public function test_post_upgrade_tokens_are_hashed(): void {
         global $DB;
