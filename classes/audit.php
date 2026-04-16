@@ -15,17 +15,36 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for auth_magiclink.
+ * Audit logger for auth_magiclink.
+ *
+ * Replaces the global add_to_audit_log() function from v2.
+ * Writes structured records to the auth_magiclink_audit table.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace auth_magiclink;
+
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026041600;
-$plugin->requires  = 2024040100;
-$plugin->component = 'auth_magiclink';
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v3.0-dev';
+/**
+ * Structured audit logging for magic link events.
+ */
+class audit {
+
+    /**
+     * Write an audit log entry.
+     *
+     * @param int|null $userid The user ID, or null if unknown.
+     * @param string $email The email address involved.
+     * @param string $action The action identifier (e.g., 'send_link', 'login_success').
+     * @param string $info Human-readable description.
+     * @param string $ip The requester's IP address.
+     * @return void
+     */
+    public static function log(?int $userid, string $email, string $action, string $info, string $ip): void {
+        throw new \coding_exception('not implemented');
+    }
+}

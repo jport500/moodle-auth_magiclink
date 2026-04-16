@@ -15,7 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for auth_magiclink.
+ * Event observers for auth_magiclink.
+ *
+ * Revokes active tokens when user state changes (suspension, deletion,
+ * password change) to prevent stale tokens from granting access.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
@@ -24,8 +27,20 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026041600;
-$plugin->requires  = 2024040100;
-$plugin->component = 'auth_magiclink';
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v3.0-dev';
+$observers = [
+    [
+        'eventname' => '\core\event\user_updated',
+        'callback' => '\auth_magiclink\observer::user_updated',
+        'internal' => false,
+    ],
+    [
+        'eventname' => '\core\event\user_deleted',
+        'callback' => '\auth_magiclink\observer::user_deleted',
+        'internal' => false,
+    ],
+    [
+        'eventname' => '\core\event\user_password_updated',
+        'callback' => '\auth_magiclink\observer::user_password_updated',
+        'internal' => false,
+    ],
+];

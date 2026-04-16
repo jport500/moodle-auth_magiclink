@@ -15,17 +15,35 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for auth_magiclink.
+ * Domain filter for magic link requests.
+ *
+ * Checks whether an email address belongs to an allowed domain,
+ * based on the configured allowlist. Empty allowlist permits all domains.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace auth_magiclink;
+
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026041600;
-$plugin->requires  = 2024040100;
-$plugin->component = 'auth_magiclink';
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v3.0-dev';
+/**
+ * Validates email domains against the configured allowlist.
+ */
+class domain_filter {
+
+    /**
+     * Check whether the email's domain is permitted.
+     *
+     * Returns true if the allowlist is empty (all domains allowed)
+     * or if the email's domain is in the allowlist.
+     *
+     * @param string $email The email address to check.
+     * @return bool True if the domain is allowed.
+     */
+    public function is_allowed(string $email): bool {
+        throw new \coding_exception('not implemented');
+    }
+}
