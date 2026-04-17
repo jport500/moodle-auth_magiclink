@@ -31,7 +31,9 @@ use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\contextlist;
+use core_privacy\local\request\transform;
 use core_privacy\local\request\userlist;
+use core_privacy\local\request\writer;
 
 /**
  * Privacy provider for auth_magiclink.
@@ -47,7 +49,24 @@ class provider implements
      * @return collection The updated collection.
      */
     public static function get_metadata(collection $collection): collection {
-        throw new \coding_exception('not implemented');
+        $collection->add_database_table('auth_magiclink_token', [
+            'userid' => 'privacy:metadata:token:userid',
+            'token' => 'privacy:metadata:token:token',
+            'expires' => 'privacy:metadata:token:expires',
+            'used' => 'privacy:metadata:token:used',
+            'timecreated' => 'privacy:metadata:token:timecreated',
+        ], 'privacy:metadata:token');
+
+        $collection->add_database_table('auth_magiclink_audit', [
+            'userid' => 'privacy:metadata:audit:userid',
+            'email' => 'privacy:metadata:audit:email',
+            'action' => 'privacy:metadata:audit:action',
+            'info' => 'privacy:metadata:audit:info',
+            'ip' => 'privacy:metadata:audit:ip',
+            'timecreated' => 'privacy:metadata:audit:timecreated',
+        ], 'privacy:metadata:audit');
+
+        return $collection;
     }
 
     /**
@@ -57,7 +76,18 @@ class provider implements
      * @return contextlist The list of contexts.
      */
     public static function get_contexts_for_userid(int $userid): contextlist {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $contextlist = new contextlist();
+
+        $hastokens = $DB->record_exists('auth_magiclink_token', ['userid' => $userid]);
+        $hasaudits = $DB->record_exists('auth_magiclink_audit', ['userid' => $userid]);
+
+        if ($hastokens || $hasaudits) {
+            $contextlist->add_system_context();
+        }
+
+        return $contextlist;
     }
 
     /**
@@ -67,7 +97,21 @@ class provider implements
      * @return void
      */
     public static function get_users_in_context(userlist $userlist): void {
-        throw new \coding_exception('not implemented');
+        $context = $userlist->get_context();
+        if (!$context instanceof \context_system) {
+            return;
+        }
+
+        $userlist->add_from_sql(
+            'userid',
+            'SELECT DISTINCT userid FROM {auth_magiclink_token}',
+            []
+        );
+        $userlist->add_from_sql(
+            'userid',
+            'SELECT DISTINCT userid FROM {auth_magiclink_audit}',
+            []
+        );
     }
 
     /**
@@ -77,7 +121,39 @@ class provider implements
      * @return void
      */
     public static function export_user_data(approved_contextlist $contextlist): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $userid = $contextlist->get_user()->id;
+        $context = \context_system::instance();
+
+        $tokens = $DB->get_records('auth_magiclink_token', ['userid' => $userid]);
+        foreach ($tokens as $token) {
+            writer::with_context($context)->export_data(
+                [get_string('privacy:path:tokens', 'auth_magiclink'), $token->id],
+                (object)[
+                    'userid' => $token->userid,
+                    'token' => $token->token,
+                    'expires' => transform::datetime($token->expires),
+                    'used' => transform::yesno($token->used),
+                    'timecreated' => transform::datetime($token->timecreated),
+                ]
+            );
+        }
+
+        $audits = $DB->get_records('auth_magiclink_audit', ['userid' => $userid]);
+        foreach ($audits as $audit) {
+            writer::with_context($context)->export_data(
+                [get_string('privacy:path:audits', 'auth_magiclink'), $audit->id],
+                (object)[
+                    'userid' => $audit->userid,
+                    'email' => $audit->email,
+                    'action' => $audit->action,
+                    'info' => $audit->info,
+                    'ip' => $audit->ip,
+                    'timecreated' => transform::datetime($audit->timecreated),
+                ]
+            );
+        }
     }
 
     /**
@@ -87,7 +163,14 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_all_users_in_context(\context $context): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        if (!$context instanceof \context_system) {
+            return;
+        }
+
+        $DB->delete_records('auth_magiclink_token');
+        $DB->delete_records('auth_magiclink_audit');
     }
 
     /**
@@ -97,7 +180,15 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_user(approved_contextlist $contextlist): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $userid = $contextlist->get_user()->id;
+        foreach ($contextlist->get_contexts() as $context) {
+            if ($context instanceof \context_system) {
+                $DB->delete_records('auth_magiclink_token', ['userid' => $userid]);
+                $DB->delete_records('auth_magiclink_audit', ['userid' => $userid]);
+            }
+        }
     }
 
     /**
@@ -107,6 +198,20 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_users(approved_userlist $userlist): void {
-        throw new \coding_exception('not implemented');
+        global $DB;
+
+        $context = $userlist->get_context();
+        if (!$context instanceof \context_system) {
+            return;
+        }
+
+        $userids = $userlist->get_userids();
+        if (empty($userids)) {
+            return;
+        }
+
+        [$insql, $params] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+        $DB->delete_records_select('auth_magiclink_token', "userid {$insql}", $params);
+        $DB->delete_records_select('auth_magiclink_audit', "userid {$insql}", $params);
     }
 }
