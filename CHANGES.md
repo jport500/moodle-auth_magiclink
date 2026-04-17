@@ -1,5 +1,24 @@
 # Changelog
 
+## v3.2 (2026-04-17)
+
+Small feature addition for integration with external plugins.
+
+- The magic link login form now accepts an email prefill via
+  query parameter. A URL like
+  `/login/index.php?email=user@example.com` will render the
+  form with the email field populated, so users can click
+  "Send Magic Link" directly without re-typing.
+- Intended use case: welcome emails sent by other LMS Light
+  plugins that want to deep-link users to a pre-filled form.
+- Security note: the prefill accepts any syntactically-valid
+  email; there is no verification that the submitter is who
+  the email belongs to. An attacker could craft a prefill
+  URL for a phishing page — the risk is minor (enumeration
+  confirmation, not account access) and matches patterns
+  common in other web apps. Not a new attack surface;
+  documented for transparency.
+
 ## v3.1 (2026-05-17)
 
 Bug fixes.

@@ -162,6 +162,13 @@ hit the limit, purge the MUC cache to reset counters:
 php admin/cli/purge_caches.php
 ```
 
+### Email prefill via URL
+
+You can link to the login page with an email pre-filled:
+`/login/index.php?email=user@example.com`. The magic link form
+will render with that email already in the input. Useful for
+welcome emails and external onboarding flows.
+
 ## For developers
 
 `auth_magiclink` exposes a public API for external plugins that

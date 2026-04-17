@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026051700;
+$plugin->version   = 2026051800;
 $plugin->requires  = 2024040100;
 $plugin->component = 'auth_magiclink';
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = 'v3.1';
+$plugin->release   = 'v3.2';

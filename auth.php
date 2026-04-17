@@ -60,12 +60,13 @@ class auth_plugin_magiclink extends auth_plugin_base {
             return;
         }
 
-        // CHANGED from v2: pass sesskey in template context for CSRF protection.
+        $email = optional_param('email', '', PARAM_EMAIL);
         $magiclinkhtml = $OUTPUT->render_from_template(
             'auth_magiclink/login_form',
             [
                 'actionurl' => (new \moodle_url('/auth/magiclink/login.php'))->out(false),
                 'sesskey' => sesskey(),
+                'email' => $email,
             ]
         );
 
