@@ -15,32 +15,32 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Magic link login page entry point.
+ * Event observers for auth_magiclink.
  *
- * Thin page boundary — all business logic is in login_controller.
+ * Revokes active tokens when user state changes (suspension, deletion,
+ * password change) to prevent stale tokens from granting access.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require('../../../config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
+defined('MOODLE_INTERNAL') || die();
 
-// Preserved v2 behavior: redirect already-logged-in users to wwwroot.
-if (isloggedin() && !isguestuser()) {
-    redirect($CFG->wwwroot);
-}
-
-$email = optional_param('email', '', PARAM_EMAIL);
-$loginurl = new moodle_url('/login/index.php');
-
-// Preserved v2 behavior: GET requests (or POST with empty email) redirect to login page.
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($email)) {
-    redirect($loginurl);
-}
-
-// CHANGED from v2: CSRF protection.
-require_sesskey();
-
-$result = \auth_magiclink\login_controller::handle_request($email, getremoteaddr());
-redirect($result['url'], $result['message'], null, $result['messagetype']);
+$observers = [
+    [
+        'eventname' => '\core\event\user_updated',
+        'callback' => '\auth_magiclink\observer::user_updated',
+        'internal' => false,
+    ],
+    [
+        'eventname' => '\core\event\user_deleted',
+        'callback' => '\auth_magiclink\observer::user_deleted',
+        'internal' => false,
+    ],
+    [
+        'eventname' => '\core\event\user_password_updated',
+        'callback' => '\auth_magiclink\observer::user_password_updated',
+        'internal' => false,
+    ],
+];

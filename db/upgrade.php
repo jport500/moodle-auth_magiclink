@@ -84,5 +84,13 @@ function xmldb_auth_magiclink_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026050705, 'auth', 'magiclink');
     }
 
+    if ($oldversion < 2026051600) {
+        // V3 migration: invalidate all existing plaintext tokens.
+        // After this upgrade, all stored tokens are SHA-256 hashes.
+        // Users with outstanding magic links must request new ones.
+        $DB->set_field('auth_magiclink_token', 'used', 1, ['used' => 0]);
+        upgrade_plugin_savepoint(true, 2026051600, 'auth', 'magiclink');
+    }
+
     return true;
 }

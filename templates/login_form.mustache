@@ -22,14 +22,17 @@
 
     Context variables required for this template:
     * actionurl - The form action URL
+    * sesskey - The session key for CSRF protection
 
     Example context (json):
     {
-        "actionurl": "/auth/magiclink/login.php"
+        "actionurl": "/auth/magiclink/login.php",
+        "sesskey": "abc123"
     }
 }}
 
 <form action="{{actionurl}}" method="post" id="auth-magiclink-form">
+    <input type="hidden" name="sesskey" value="{{sesskey}}">
     <div class="form-group mb-3">
         <label for="email" class="visually-hidden">{{#str}} email, core {{/str}}</label>
         <input type="email" name="email" id="email" class="form-control form-control-lg" placeholder="{{#str}} email, core {{/str}}" required>

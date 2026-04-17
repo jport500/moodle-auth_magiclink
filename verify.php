@@ -15,56 +15,24 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Magic link token verification page.
+ * Magic link token verification page entry point.
  *
- * Validates the magic link token and logs the user in.
+ * Thin page boundary — all business logic is in verify_controller.
  *
  * @package    auth_magiclink
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require('../../config.php');
-require_once($CFG->libdir . '/authlib.php');
-require_once("$CFG->dirroot/auth/magiclink/lib.php");
+require('../../../config.php'); // phpcs:ignore moodle.Files.RequireLogin.Missing
 
 $token = required_param('token', PARAM_ALPHANUM);
-$ip = getremoteaddr();
+$wantsurl = optional_param('wantsurl', '', PARAM_RAW);
 
-$record = $DB->get_record('auth_magiclink_token', ['token' => $token]);
+$result = \auth_magiclink\verify_controller::handle_verify($token, getremoteaddr(), $wantsurl);
 
-if ($record && $record->used == 0 && $record->expires > time()) {
-    $user = $DB->get_record('user', ['id' => $record->userid]);
-
-    if ($user) {
-        $record->used = 1;
-        $DB->update_record('auth_magiclink_token', $record);
-
-        add_to_audit_log($user->id, $user->email, 'login_success', "User logged in via magic link.", $ip);
-        complete_user_login($user);
-        $url = $SESSION->wantsurl ?? $CFG->wwwroot;
-        redirect($url);
-    }
+if (!empty($result['message'])) {
+    redirect($result['url'], $result['message'], null, $result['messagetype']);
+} else {
+    redirect($result['url']);
 }
-
-// Audit log: Login failed (expired or used token).
-$useremail = 'unknown';
-if ($record && isset($record->userid)) {
-    $useremail = $DB->get_field('user', 'email', ['id' => $record->userid]) ?: 'unknown';
-}
-
-$info = 'Token expired.';
-if (!$record) {
-    $info = 'Token not found.';
-} else if ($record->used) {
-    $info = 'Token already used.';
-}
-
-add_to_audit_log($record ? $record->userid : 0, $useremail, 'login_failed', $info, $ip);
-
-redirect(
-    new moodle_url('/login/index.php'),
-    get_string('expired', 'auth_magiclink'),
-    null,
-    \core\output\notification::NOTIFY_ERROR
-);

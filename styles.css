@@ -1,0 +1,26 @@
+/* auth_magiclink management page styles. Moved from inline <style> in manage.mustache (fixes M8). */
+.auth-magiclink-action {
+    padding: 0.1rem 0.5rem;
+    background: var(--bs-gray-600);
+    border-radius: 0.5rem;
+    color: white !important; /* stylelint-disable-line declaration-no-important */
+    text-transform: capitalize;
+}
+.auth-magiclink-action:hover {
+    filter: brightness(0.85);
+}
+.auth-magiclink-status {
+    text-transform: capitalize;
+}
+.auth-magiclink-status[data-status="unused"] span {
+    font-weight: bold;
+}
+.auth-magiclink-action[data-action="delete"] {
+    background: var(--bs-gray-600);
+}
+.auth-magiclink-action[data-action="revoke"] {
+    background: var(--bs-red);
+}
+.auth-magiclink-action[data-action="extend"] {
+    background: var(--bs-green);
+}
