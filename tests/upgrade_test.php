@@ -68,8 +68,12 @@ final class upgrade_test extends \advanced_testcase {
 
         // Run the upgrade function with an old version that triggers the migration.
         // Lower the installed version so upgrade_plugin_savepoint accepts the new savepoint.
-        $DB->set_field('config_plugins', 'value', '2026050705',
-            ['plugin' => 'auth_magiclink', 'name' => 'version']);
+        $DB->set_field(
+            'config_plugins',
+            'value',
+            '2026050705',
+            ['plugin' => 'auth_magiclink', 'name' => 'version']
+        );
         require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
         require_once($CFG->libdir . '/upgradelib.php');
         xmldb_auth_magiclink_upgrade(2026050705);
