@@ -64,7 +64,7 @@ class auth_plugin_magiclink extends auth_plugin_base {
         $magiclinkhtml = $OUTPUT->render_from_template(
             'auth_magiclink/login_form',
             [
-                'actionurl' => "$CFG->wwwroot/auth/magiclink/login.php",
+                'actionurl' => (new \moodle_url('/auth/magiclink/login.php'))->out(false),
                 'sesskey' => sesskey(),
             ]
         );

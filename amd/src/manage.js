@@ -16,6 +16,9 @@
 /**
  * Magic link management page JavaScript.
  *
+ * Adds confirmation modals to token management actions (extend, revoke, delete).
+ * Actions are submitted as GET requests with sesskey for CSRF protection.
+ *
  * @module     auth_magiclink/manage
  * @copyright  2026 LMS Light
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -26,33 +29,49 @@ import ModalDeleteCancel from 'core/modal_delete_cancel';
 import ModalSaveCancel from 'core/modal_save_cancel';
 import ModalEvents from 'core/modal_events';
 
-export const init = async () => {
-    document.querySelectorAll('#auth-magiclink-manage button')
-    .forEach(elem => elem.addEventListener('click', async e => {
-        e.preventDefault();
-        var userId = e.target.dataset.id;
-        var action = e.target.dataset.action;
+/**
+ * Build the action URL with proper parameter encoding.
+ *
+ * @param {string} action The action name.
+ * @param {string} tokenId The token record ID.
+ * @returns {string} The encoded URL.
+ */
+const buildActionUrl = (action, tokenId) => {
+    const params = new URLSearchParams({
+        action: action,
+        id: tokenId,
+        sesskey: M.cfg.sesskey,
+    });
+    return '?' + params.toString();
+};
 
-        if (action === 'extend') {
-            const modal = await ModalSaveCancel.create({
-                title: await getString('extendmodal', 'auth_magiclink'),
-                body: await getString('extendconfirmation', 'auth_magiclink'),
-                show: true,
-                removeOnClose: true,
-            });
-            modal.getRoot().on(ModalEvents.save, () => {
-                window.location.href = `?action=extend&id=${userId}&sesskey=${M.cfg.sesskey}`;
-            });
-        } else {
-            const modal = await ModalDeleteCancel.create({
-                title: await getString(`${action}modal`, 'auth_magiclink'),
-                body: await getString(`${action}confirmation`, 'auth_magiclink'),
-                show: true,
-                removeOnClose: true,
-            });
-            modal.getRoot().on(ModalEvents.delete, () => {
-                window.location.href = `?action=${action}&id=${userId}&sesskey=${M.cfg.sesskey}`;
-            });
-        }
-    }));
+export const init = () => {
+    document.querySelectorAll('#auth-magiclink-manage .auth-magiclink-action')
+        .forEach((elem) => elem.addEventListener('click', async(e) => {
+            e.preventDefault();
+            const tokenId = e.target.dataset.id;
+            const action = e.target.dataset.action;
+
+            if (action === 'extend') {
+                const modal = await ModalSaveCancel.create({
+                    title: await getString('extendmodal', 'auth_magiclink'),
+                    body: await getString('extendconfirmation', 'auth_magiclink'),
+                    show: true,
+                    removeOnClose: true,
+                });
+                modal.getRoot().on(ModalEvents.save, () => {
+                    window.location.href = buildActionUrl(action, tokenId);
+                });
+            } else {
+                const modal = await ModalDeleteCancel.create({
+                    title: await getString(`${action}modal`, 'auth_magiclink'),
+                    body: await getString(`${action}confirmation`, 'auth_magiclink'),
+                    show: true,
+                    removeOnClose: true,
+                });
+                modal.getRoot().on(ModalEvents.delete, () => {
+                    window.location.href = buildActionUrl(action, tokenId);
+                });
+            }
+        }));
 };
