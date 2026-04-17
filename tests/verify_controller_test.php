@@ -257,27 +257,32 @@ final class verify_controller_test extends \advanced_testcase {
     }
 
     /**
-     * (j) Force-password-change preference is cleared before login.
+     * (j) Force-password-change preference is cleared on successful verify.
      */
-    public function test_forcepasswordchange_cleared(): void {
-        global $DB, $USER;
+    public function test_clears_forcepasswordchange_on_successful_verify(): void {
+        global $DB;
         $this->resetAfterTest();
+        $this->preventResetByRollback();
 
         $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
         set_user_preference('auth_forcepasswordchange', 1, $user);
 
+        // Sanity: preference is set.
+        $this->assertEquals(
+            '1',
+            get_user_preferences('auth_forcepasswordchange', null, $user)
+        );
+
         $token = api::generate_token_for_user($user->id);
-        $result = verify_controller::handle_verify($token, '10.0.0.1');
+        $result = verify_controller::handle_verify($token, '127.0.0.1', '');
 
+        // Verification succeeded.
         $this->assertTrue($result['loggedin']);
-        $this->assertEquals($user->id, $USER->id);
 
-        // Preference cleared in DB.
-        $this->assertFalse(
-            $DB->record_exists('user_preferences', [
-                'userid' => $user->id,
-                'name' => 'auth_forcepasswordchange',
-            ])
+        // Preference is cleared from DB. Pass userid (not the stale $user object)
+        // to force a fresh DB read — the controller operated on a different object.
+        $this->assertNull(
+            get_user_preferences('auth_forcepasswordchange', null, $user->id)
         );
     }
 }

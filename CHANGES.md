@@ -1,5 +1,25 @@
 # Changelog
 
+## v3.1 (2026-05-17)
+
+Bug fixes.
+
+- Clear `auth_forcepasswordchange` user preference on successful
+  magic link verification. Without this, users created via admin
+  UI with the "Force password change on next login" flag set
+  (which Moodle applies by default for new accounts) would click
+  a valid magic link, be logged in successfully, then hit
+  Moodle's "You cannot proceed without changing your password,
+  however there is no available page for changing it" error.
+  The flag is meaningless for passwordless auth — a successful
+  magic link verification is itself proof of identity.
+
+Documentation.
+
+- README troubleshooting section clarifies that magic link
+  login requires `auth='magiclink'` on the user profile, with
+  guidance on how to enable it for existing users.
+
 ## v3.0 (2026-05-16)
 
 Security hardening rewrite. Addresses all 26 findings from the v2

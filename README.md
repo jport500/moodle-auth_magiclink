@@ -142,7 +142,7 @@ set Authentication method to "Magic Link" > Save.
 **If you want to change this restriction:** the plugin does not
 currently expose a setting for it. Relaxing the auth-type check is a
 deliberate product decision, not a configuration option. If you have
-a specific use case (e.g., SSO-fallback login when your identity
+a specific use case (for example, SSO-fallback login when your identity
 provider is down), discuss with the LMS Light team before modifying
 plugin code.
 
