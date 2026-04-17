@@ -169,6 +169,19 @@ You can link to the login page with an email pre-filled:
 will render with that email already in the input. Useful for
 welcome emails and external onboarding flows.
 
+Special characters in email addresses must be URL-encoded in the
+query parameter. The most common case is `+` in subaddresses
+(e.g. Gmail-style `user+tag@example.com`), which must appear in
+the URL as `%2B`:
+
+    /login/index.php?email=user%2Btag@example.com
+
+This is standard URL encoding — a literal `+` in a query string
+is interpreted as a space, which produces an invalid email. Code
+constructing these URLs via Moodle's `moodle_url` class or PHP's
+`rawurlencode()` handles this automatically. Manual URL typing
+during testing may not.
+
 ## For developers
 
 `auth_magiclink` exposes a public API for external plugins that
