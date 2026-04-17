@@ -255,4 +255,29 @@ final class verify_controller_test extends \advanced_testcase {
             $result['message']
         );
     }
+
+    /**
+     * (j) Force-password-change preference is cleared before login.
+     */
+    public function test_forcepasswordchange_cleared(): void {
+        global $DB, $USER;
+        $this->resetAfterTest();
+
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        set_user_preference('auth_forcepasswordchange', 1, $user);
+
+        $token = api::generate_token_for_user($user->id);
+        $result = verify_controller::handle_verify($token, '10.0.0.1');
+
+        $this->assertTrue($result['loggedin']);
+        $this->assertEquals($user->id, $USER->id);
+
+        // Preference cleared in DB.
+        $this->assertFalse(
+            $DB->record_exists('user_preferences', [
+                'userid' => $user->id,
+                'name' => 'auth_forcepasswordchange',
+            ])
+        );
+    }
 }

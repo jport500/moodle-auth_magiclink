@@ -120,15 +120,37 @@ foreach ($rows as $r) {
 | `rate_limited` | Too many requests from this email or IP | Wait for the rate limit window to expire, or purge caches (see below) |
 | `send_failed` | Token created but email delivery failed (check `info` for exception) | Check Moodle email configuration and mail server logs |
 
-### Common gotcha: admin accounts
+### Who can use magic link login
 
-Admin accounts typically use `auth='manual'` and will **not** receive
-magic links. This is intentional — it prevents magic-link capture of
-privileged accounts via compromised email. If you see `wrong_auth` in
-the audit log, the user's auth method is not `magiclink`.
+Magic link login is only available to users whose authentication
+method is set to **Magic Link**. Users on other authentication
+methods (Manual, OAuth2, SAML, LDAP, etc.) will not receive a magic
+link if they request one — the audit log records this as
+`wrong_auth` and the user sees the same uniform "if this email
+exists" message as any other rejection.
 
-To enable magic link login for a user: Site Administration > Users >
-edit their profile > Authentication method > Magic Link.
+This is intentional. Allowing magic link login for password-based
+auth methods would mean email compromise is sufficient for account
+access, bypassing passwords entirely. For privileged accounts
+(admins, managers) on `auth='manual'`, this would be a significant
+security regression.
+
+**To enable magic link login for a user:** Site Administration >
+Users > Accounts > Browse list of users > edit the user's profile >
+set Authentication method to "Magic Link" > Save.
+
+**If you want to change this restriction:** the plugin does not
+currently expose a setting for it. Relaxing the auth-type check is a
+deliberate product decision, not a configuration option. If you have
+a specific use case (e.g., SSO-fallback login when your identity
+provider is down), discuss with the LMS Light team before modifying
+plugin code.
+
+**Diagnosing:** if a user reports "I didn't get the email," check
+the audit log for their email address. A `wrong_auth` row means the
+user exists but their auth method is not `magiclink`. This is the
+most common support ticket for new deployments where admin accounts
+are tested before switching auth methods.
 
 ### Rate limiter and testing
 

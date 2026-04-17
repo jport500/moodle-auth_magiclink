@@ -77,6 +77,13 @@ class verify_controller {
         }
 
         audit::log($user->id, $user->email, 'login_success', '', $ip);
+
+        // Clear force-password-change before login. Magiclink users don't use
+        // passwords; complete_user_login() reloads preferences from DB at line
+        // 4147, so the DB row must be gone before that reload. Without this,
+        // Moodle throws nopasswordchangeforced (unrecoverable error page).
+        unset_user_preference('auth_forcepasswordchange', $user);
+
         @complete_user_login($user);
 
         $destination = self::resolve_destination($wantsurlparam);
