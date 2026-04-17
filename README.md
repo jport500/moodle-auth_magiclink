@@ -71,6 +71,75 @@ Visit the management page (linked from the settings page) to:
 Requires the `auth/magiclink:manage` capability (granted to the
 manager archetype by default).
 
+## Troubleshooting
+
+### Why didn't they get the email?
+
+By design, every magic link request produces the same user-visible
+message ("If that email address is registered, a login link has been
+sent") regardless of whether the email was actually sent. This
+prevents attackers from discovering which emails are registered.
+
+It also means the UI will not tell you why a request failed. **The
+audit log is the primary diagnostic tool.**
+
+### Reading the audit log
+
+Via the admin UI: visit the management page at
+`/auth/magiclink/manage.php` (requires `auth/magiclink:manage`
+capability). The audit log table is at the bottom.
+
+Via CLI:
+
+```bash
+php -r '
+define("CLI_SCRIPT", true);
+require("config.php");
+global $DB;
+$rows = $DB->get_records("auth_magiclink_audit", null,
+                         "timecreated DESC", "*", 0, 10);
+foreach ($rows as $r) {
+    echo date("H:i:s", $r->timecreated) . " | " .
+         str_pad($r->action, 15) . " | " .
+         str_pad($r->email, 40) . " | " .
+         ($r->info ?: "-") . "\n";
+}
+'
+```
+
+### Audit actions reference
+
+| Action | Meaning | Typical fix |
+|--------|---------|-------------|
+| `send_link` | Token generated and email sent | Success — no fix needed |
+| `login_success` | User verified token and logged in | Success — no fix needed |
+| `login_failed` | Token verification failed (check `info` column for reason: expired, already used, user inactive) | User requests a new link |
+| `wrong_auth` | User exists but `auth` is not `magiclink` | Change user's auth method to `magiclink` in their profile |
+| `no_user` | No active user found with that email | Check spelling, or user may be deleted/suspended |
+| `domain_blocked` | Email domain not in the allowed list | Add the domain to the `alloweddomains` setting |
+| `rate_limited` | Too many requests from this email or IP | Wait for the rate limit window to expire, or purge caches (see below) |
+| `send_failed` | Token created but email delivery failed (check `info` for exception) | Check Moodle email configuration and mail server logs |
+
+### Common gotcha: admin accounts
+
+Admin accounts typically use `auth='manual'` and will **not** receive
+magic links. This is intentional — it prevents magic-link capture of
+privileged accounts via compromised email. If you see `wrong_auth` in
+the audit log, the user's auth method is not `magiclink`.
+
+To enable magic link login for a user: Site Administration > Users >
+edit their profile > Authentication method > Magic Link.
+
+### Rate limiter and testing
+
+Repeated requests (including against non-existent emails) count
+against the per-email and per-IP rate limits. During testing, if you
+hit the limit, purge the MUC cache to reset counters:
+
+```bash
+php admin/cli/purge_caches.php
+```
+
 ## For developers
 
 `auth_magiclink` exposes a public API for external plugins that

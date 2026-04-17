@@ -44,6 +44,11 @@ contracts preserved.
 - `auth/magiclink:manage` (manager archetype) replaces reliance
   on `moodle/site:config` for the management page
 
+### Documentation
+
+- Added Troubleshooting section to README covering the audit log
+  as the primary delivery diagnostic, with action reference table.
+
 ### Architectural changes
 
 - All page scripts (login.php, verify.php, manage.php) reduced
