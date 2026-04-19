@@ -186,3 +186,17 @@ The version number is effectively opaque once it's shipped. Calendar accuracy wa
 **Date:** 2026-04-19, formalized with v3.3 release.
 
 **Would revisit if:** A future version-numbering standard emerges that handles this more elegantly. As of April 2026, Moodle's upgrade machinery makes the monotonic-integer constraint load-bearing, so any alternative has to preserve monotonicity.
+
+---
+
+## Known issues (post-v3.3)
+
+### Audit-semantics bug: `send_login_email` return value ignored
+
+**Observation (during v3.3 real-SMTP verification):** `login_controller::handle_request` calls `send_login_email()` which returns bool, but the return value is discarded. When `email_to_user()` returns false (e.g., transient SMTP connect failure), the code still writes `send_link` to the audit log instead of `send_failed`.
+
+**Scope:** Pre-existing bug from v3.0-era code. Not introduced by v3.3. Narrow impact — only visible on SMTP failures, which are relatively rare. Audit log reader sees `send_link` + no corresponding `login_success` and may assume user "didn't click the link," when actually no email was delivered.
+
+**Planned fix:** A future release will check the return of `send_login_email` and emit `send_failed` with the error info. Needs a corresponding test in `login_controller_test` that mocks email failure and asserts the audit state.
+
+**Workaround for now:** Operators troubleshooting "user says they didn't get the email" should check Moodle's main mail error log (`$CFG->dataroot/temp/mailer-debug.log` or similar) to distinguish "email delivered but user ignored it" from "email never left Moodle."
