@@ -92,5 +92,17 @@ function xmldb_auth_magiclink_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026051600, 'auth', 'magiclink');
     }
 
+    if ($oldversion < 2026060100) {
+        // V3.3 migration: preserve v3.2 behavior for existing installs.
+        // Sets allowed_auth_methods to 'magiclink' if unset so operators
+        // who upgrade see identical login behavior until they deliberately
+        // widen the allowlist. Fresh installs get a different default
+        // (all enabled auth plugins) supplied by settings.php.
+        if (get_config('auth_magiclink', 'allowed_auth_methods') === false) {
+            set_config('allowed_auth_methods', 'magiclink', 'auth_magiclink');
+        }
+        upgrade_plugin_savepoint(true, 2026060100, 'auth', 'magiclink');
+    }
+
     return true;
 }

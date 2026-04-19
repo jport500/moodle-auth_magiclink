@@ -86,7 +86,10 @@ final class upgrade_test extends \advanced_testcase {
     }
 
     /**
-     * Test that running upgrade with a version >= target is a no-op (idempotent).
+     * Running upgrade when the installed version is already current is
+     * a no-op for every migration block — no tokens invalidated, no
+     * config rewritten. "Current" tracks the installed plugin version
+     * so this test stays honest as new upgrade blocks are added.
      */
     public function test_upgrade_idempotent_when_current(): void {
         global $DB, $CFG;
@@ -100,11 +103,90 @@ final class upgrade_test extends \advanced_testcase {
         ]);
 
         require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
-        // Oldversion >= 2026051600: the migration block should NOT execute.
-        xmldb_auth_magiclink_upgrade(2026051600);
+        // Oldversion == 2026060100 (current): every migration block's
+        // guard short-circuits, so nothing executes.
+        xmldb_auth_magiclink_upgrade(2026060100);
 
-        // Token remains unused.
+        // Token remains unused (the < 2026051600 block did not execute).
         $this->assertEquals(1, $DB->count_records('auth_magiclink_token', ['used' => 0]));
+    }
+
+    /**
+     * V3.3 upgrade from a pre-v3.3 state (unset allowlist) sets the
+     * allowlist to 'magiclink' so existing installs retain v3.2
+     * login behavior.
+     */
+    public function test_upgrade_sets_allowlist_to_magiclink_for_pre_v33(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        // Wipe any pre-existing value to simulate a fresh pre-v3.3 state.
+        unset_config('allowed_auth_methods', 'auth_magiclink');
+        $this->assertFalse(get_config('auth_magiclink', 'allowed_auth_methods'));
+
+        // Point the installed version at v3.2 so the savepoint accepts the bump.
+        $DB->set_field(
+            'config_plugins',
+            'value',
+            '2026051800',
+            ['plugin' => 'auth_magiclink', 'name' => 'version']
+        );
+
+        require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+        xmldb_auth_magiclink_upgrade(2026051800);
+
+        $this->assertSame(
+            'magiclink',
+            get_config('auth_magiclink', 'allowed_auth_methods')
+        );
+    }
+
+    /**
+     * V3.3 upgrade does not overwrite an allowlist that is already set
+     * (idempotent on re-run; respectful if an admin already configured).
+     */
+    public function test_upgrade_preserves_existing_allowlist(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        // Admin had already configured a custom allowlist.
+        set_config('allowed_auth_methods', 'magiclink,manual', 'auth_magiclink');
+
+        $DB->set_field(
+            'config_plugins',
+            'value',
+            '2026051800',
+            ['plugin' => 'auth_magiclink', 'name' => 'version']
+        );
+
+        require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+        xmldb_auth_magiclink_upgrade(2026051800);
+
+        $this->assertSame(
+            'magiclink,manual',
+            get_config('auth_magiclink', 'allowed_auth_methods')
+        );
+    }
+
+    /**
+     * Running the upgrade from v3.3 onward is a no-op for the allowlist
+     * block (guard condition short-circuits).
+     */
+    public function test_upgrade_no_op_at_v33_or_later(): void {
+        global $CFG;
+        $this->resetAfterTest();
+
+        // Simulate an admin clearing the setting after v3.3 was installed.
+        unset_config('allowed_auth_methods', 'auth_magiclink');
+
+        require_once($CFG->dirroot . '/auth/magiclink/db/upgrade.php');
+        // Oldversion >= 2026060100: the v3.3 block should NOT execute.
+        xmldb_auth_magiclink_upgrade(2026060100);
+
+        // Still unset — the guard short-circuited.
+        $this->assertFalse(get_config('auth_magiclink', 'allowed_auth_methods'));
     }
 
     /**

@@ -84,6 +84,23 @@ if ($ADMIN->fulltree) {
         ''
     ));
 
+    // Allowed auth methods (v3.3+). Multiselect of currently-enabled auth
+    // plugins. Users whose user.auth is in this list may request magic
+    // links; admins (has moodle/site:config) are always excluded by the
+    // login controller regardless of this setting.
+    $authoptions = [];
+    $enabledauths = \core\plugininfo\auth::get_enabled_plugins() ?: [];
+    foreach (array_keys($enabledauths) as $shortname) {
+        $authoptions[$shortname] = get_string('pluginname', 'auth_' . $shortname);
+    }
+    $settings->add(new admin_setting_configmultiselect(
+        'auth_magiclink/allowed_auth_methods',
+        get_string('setting_allowedauthmethods', 'auth_magiclink'),
+        get_string('setting_allowedauthmethods_desc', 'auth_magiclink'),
+        array_keys($enabledauths),
+        $authoptions
+    ));
+
     // Security settings header.
     $settings->add(new admin_setting_heading(
         'auth_magiclink/security',
