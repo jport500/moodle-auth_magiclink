@@ -157,4 +157,27 @@ final class api_test extends \advanced_testcase {
         $this->assertTrue(api::is_auth_allowed($manual));
         $this->assertFalse(api::is_auth_allowed($email));
     }
+
+    /**
+     * Regular user (no site-config capability) is not admin-blocked.
+     */
+    public function test_is_admin_user_false_for_regular_user(): void {
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $this->assertFalse(api::is_admin_user($user));
+    }
+
+    /**
+     * Site admin (has moodle/site:config at system context) is
+     * admin-blocked — this is the hardcoded v3.3 exclusion.
+     */
+    public function test_is_admin_user_true_for_site_admin(): void {
+        global $CFG;
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $admins = array_filter(explode(',', $CFG->siteadmins ?? ''));
+        $admins[] = (string) $user->id;
+        set_config('siteadmins', implode(',', $admins));
+        $this->assertTrue(api::is_admin_user($user));
+    }
 }

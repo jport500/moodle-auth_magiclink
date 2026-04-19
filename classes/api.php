@@ -130,4 +130,29 @@ class api {
         }
         return in_array($user->auth, $allowed, true);
     }
+
+    /**
+     * Check whether a user holds site-config capability and is therefore
+     * ineligible for magic-link login (v3.3 hardcoded exclusion).
+     *
+     * Defense against email-account compromise cascading to site-wide
+     * admin takeover: an attacker with access to an admin's inbox must
+     * not be able to convert that into an admin session via a magic
+     * link. The exclusion is hardcoded — operators cannot relax it
+     * through the allowlist.
+     *
+     * Call sites should run this check before is_auth_allowed so
+     * admin attempts always surface as 'admin_blocked' in the audit
+     * log, regardless of what the user's auth method is.
+     *
+     * @param \stdClass $user A user record.
+     * @return bool True if the user is admin-blocked.
+     */
+    public static function is_admin_user(\stdClass $user): bool {
+        return has_capability(
+            'moodle/site:config',
+            \context_system::instance(),
+            $user
+        );
+    }
 }

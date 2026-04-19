@@ -257,6 +257,40 @@ final class verify_controller_test extends \advanced_testcase {
     }
 
     /**
+     * (j++) v3.3 admin exclusion at verify time. A token issued before
+     * a user gained site-config capability must be rejected at verify
+     * — Moodle's capability-grant events aren't reliable enough for
+     * observer-based revocation, so verify-time enforcement covers
+     * this window.
+     */
+    public function test_verify_rejects_admin_user(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+
+        $user = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $token = api::generate_token_for_user($user->id);
+
+        // Between token issue and verify click, the user becomes admin.
+        $admins = array_filter(explode(',', $CFG->siteadmins ?? ''));
+        $admins[] = (string) $user->id;
+        set_config('siteadmins', implode(',', $admins));
+
+        $result = verify_controller::handle_verify($token, '10.0.0.1');
+
+        $this->assertFalse($result['loggedin']);
+        $this->assertFalse(isloggedin());
+        $this->assertEquals(
+            get_string('tokennotvalid', 'auth_magiclink'),
+            $result['message']
+        );
+
+        $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
+            'userid' => $user->id,
+            'action' => 'admin_blocked',
+        ]));
+    }
+
+    /**
      * (j+) v3.3 allowlist re-check at verify time. A token issued while
      * a user's auth was allowed must be rejected if the allowlist
      * narrows before the user clicks the link. Short token TTLs bound
@@ -288,12 +322,10 @@ final class verify_controller_test extends \advanced_testcase {
             $result['messagetype']
         );
 
-        // Audit: login_failed with reason flagging auth-method rejection.
-        $this->assertTrue($DB->record_exists_select(
-            'auth_magiclink_audit',
-            "userid = :uid AND action = 'login_failed' AND " . $DB->sql_like('info', ':info'),
-            ['uid' => $user->id, 'info' => '%Auth method not allowed%']
-        ));
+        $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
+            'userid' => $user->id,
+            'action' => 'wrong_auth',
+        ]));
     }
 
     /**

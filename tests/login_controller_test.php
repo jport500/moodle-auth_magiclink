@@ -171,6 +171,85 @@ final class login_controller_test extends \advanced_testcase {
     }
 
     /**
+     * (c++) v3.3 admin exclusion: a user with site-config capability is
+     * rejected with audit 'admin_blocked', even when their auth method
+     * is on the allowlist.
+     */
+    public function test_admin_user_blocked_with_admin_blocked_audit(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+        $this->preventResetByRollback();
+        $sink = $this->redirectEmails();
+
+        $user = $this->getDataGenerator()->create_user([
+            'auth' => 'magiclink',
+            'email' => 'admin-user@school.edu',
+        ]);
+        $admins = array_filter(explode(',', $CFG->siteadmins ?? ''));
+        $admins[] = (string) $user->id;
+        set_config('siteadmins', implode(',', $admins));
+
+        $result = login_controller::handle_request('admin-user@school.edu', '10.0.0.1');
+
+        $this->assertCount(0, $sink->get_messages());
+        $sink->close();
+
+        $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'admin-user@school.edu',
+            'action' => 'admin_blocked',
+        ]));
+        // Not also wrong_auth — admin_blocked is the single audit entry.
+        $this->assertFalse($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'admin-user@school.edu',
+            'action' => 'wrong_auth',
+        ]));
+
+        $this->assertEquals(
+            get_string('linksent_uniform', 'auth_magiclink'),
+            $result['message']
+        );
+    }
+
+    /**
+     * (c+++) v3.3 admin-first ordering. An admin whose auth method is
+     * ALSO disallowed by the allowlist shows 'admin_blocked', not
+     * 'wrong_auth'. The admin fact is the operationally-interesting
+     * signal; auth-method detail would mislead the audit reader into
+     * thinking this was a random non-admin rejection.
+     */
+    public function test_admin_with_disallowed_auth_shows_admin_blocked_not_wrong_auth(): void {
+        global $CFG, $DB;
+        $this->resetAfterTest();
+        $this->preventResetByRollback();
+        $sink = $this->redirectEmails();
+
+        // Narrow allowlist so 'manual' is NOT allowed.
+        set_config('allowed_auth_methods', 'magiclink', 'auth_magiclink');
+
+        $user = $this->getDataGenerator()->create_user([
+            'auth' => 'manual',
+            'email' => 'admin-manual@school.edu',
+        ]);
+        $admins = array_filter(explode(',', $CFG->siteadmins ?? ''));
+        $admins[] = (string) $user->id;
+        set_config('siteadmins', implode(',', $admins));
+
+        $result = login_controller::handle_request('admin-manual@school.edu', '10.0.0.1');
+
+        $this->assertCount(0, $sink->get_messages());
+        $sink->close();
+
+        $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'admin-manual@school.edu',
+            'action' => 'admin_blocked',
+        ]));
+        $this->assertFalse($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'admin-manual@school.edu',
+            'action' => 'wrong_auth',
+        ]));
+    }
+
+    /**
      * (d) Domain blocked: no email sent, audit 'domain_blocked', uniform message.
      */
     public function test_domain_blocked_no_email_sent(): void {

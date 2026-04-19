@@ -84,13 +84,28 @@ class login_controller {
             return $uniformresult;
         }
 
-        // User lookup — must exist, be active, and have an auth method
-        // on the v3.3 allowlist (api::is_auth_allowed — see classes/api.php
-        // for the three-state logic).
+        // User lookup — must exist and be active.
         $user = $DB->get_record('user', ['email' => $email, 'deleted' => 0, 'suspended' => 0]);
-        if (!$user || !api::is_auth_allowed($user)) {
-            $action = !$user ? 'no_user' : 'wrong_auth';
-            audit::log($user->id ?? null, $email, $action, '', $ip);
+        if (!$user) {
+            audit::log(null, $email, 'no_user', '', $ip);
+            $limiter->record($email, $ip);
+            return $uniformresult;
+        }
+
+        // V3.3 admin exclusion (admin-first for audit clarity). An admin's
+        // attempt always surfaces as 'admin_blocked' regardless of auth
+        // method — operators reading the log can tell admin-magiclink
+        // attempts apart from random non-admin rejections.
+        if (api::is_admin_user($user)) {
+            audit::log($user->id, $email, 'admin_blocked', '', $ip);
+            $limiter->record($email, $ip);
+            return $uniformresult;
+        }
+
+        // V3.3 allowlist check — see api::is_auth_allowed for three-state
+        // logic (unset / empty / csv).
+        if (!api::is_auth_allowed($user)) {
+            audit::log($user->id, $email, 'wrong_auth', '', $ip);
             $limiter->record($email, $ip);
             return $uniformresult;
         }
