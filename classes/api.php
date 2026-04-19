@@ -100,4 +100,34 @@ class api {
         $tm = new token_manager();
         return $tm->revoke_all_for_user($userid);
     }
+
+    /**
+     * Check whether a user's auth method is on the magic-link allowlist.
+     *
+     * Three states for the stored config (spec §5.3 of the v3.3 design
+     * captured in docs/DECISIONS.md):
+     *
+     *   - Unset (false): fresh install that never visited settings. Fall
+     *     back to all currently-enabled auth plugins — permissive
+     *     fresh-install default without requiring a write.
+     *   - Empty string: admin deliberately saved an empty selection.
+     *     Honor it — allowlist is empty, nobody qualifies. This is the
+     *     lockdown case ("temporarily disable magic links for everyone").
+     *   - Comma-separated: the normal case. Parse and check membership.
+     *
+     * Admin exclusion is layered on top of this check by the login and
+     * verify controllers (Phase 3).
+     *
+     * @param \stdClass $user A user record with an `auth` field.
+     * @return bool True if the user's auth method is allowed.
+     */
+    public static function is_auth_allowed(\stdClass $user): bool {
+        $raw = get_config('auth_magiclink', 'allowed_auth_methods');
+        if ($raw === false) {
+            $allowed = array_keys(\core\plugininfo\auth::get_enabled_plugins() ?: []);
+        } else {
+            $allowed = $raw === '' ? [] : explode(',', $raw);
+        }
+        return in_array($user->auth, $allowed, true);
+    }
 }

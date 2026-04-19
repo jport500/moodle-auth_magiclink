@@ -106,6 +106,11 @@ final class observer_test extends \advanced_testcase {
         global $DB;
         $this->resetAfterTest();
 
+        // Narrow the allowlist so 'manual' is not on it — the permissive
+        // fresh-install default would otherwise include 'manual' and the
+        // observer would (correctly) not revoke tokens for the change.
+        set_config('allowed_auth_methods', 'magiclink', 'auth_magiclink');
+
         ['user' => $user] = $this->create_user_with_token();
 
         $DB->set_field('user', 'auth', 'manual', ['id' => $user->id]);

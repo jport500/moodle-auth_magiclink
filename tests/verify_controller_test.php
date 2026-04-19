@@ -257,6 +257,46 @@ final class verify_controller_test extends \advanced_testcase {
     }
 
     /**
+     * (j+) v3.3 allowlist re-check at verify time. A token issued while
+     * a user's auth was allowed must be rejected if the allowlist
+     * narrows before the user clicks the link. Short token TTLs bound
+     * the exposure window; no eager revocation needed
+     * (docs/DECISIONS.md v3.3 entry).
+     */
+    public function test_verify_rejects_when_allowlist_narrowed_mid_flight(): void {
+        global $DB;
+        $this->resetAfterTest();
+
+        // Issue-time: allowlist includes 'manual', token generated.
+        set_config('allowed_auth_methods', 'magiclink,manual', 'auth_magiclink');
+        $user = $this->getDataGenerator()->create_user(['auth' => 'manual']);
+        $token = api::generate_token_for_user($user->id);
+
+        // Verify-time: allowlist narrowed to 'magiclink' only.
+        set_config('allowed_auth_methods', 'magiclink', 'auth_magiclink');
+
+        $result = verify_controller::handle_verify($token, '10.0.0.1');
+
+        $this->assertFalse($result['loggedin']);
+        $this->assertFalse(isloggedin());
+        $this->assertEquals(
+            get_string('tokennotvalid', 'auth_magiclink'),
+            $result['message']
+        );
+        $this->assertEquals(
+            \core\output\notification::NOTIFY_ERROR,
+            $result['messagetype']
+        );
+
+        // Audit: login_failed with reason flagging auth-method rejection.
+        $this->assertTrue($DB->record_exists_select(
+            'auth_magiclink_audit',
+            "userid = :uid AND action = 'login_failed' AND " . $DB->sql_like('info', ':info'),
+            ['uid' => $user->id, 'info' => '%Auth method not allowed%']
+        ));
+    }
+
+    /**
      * (j) Force-password-change preference is cleared on successful verify.
      */
     public function test_clears_forcepasswordchange_on_successful_verify(): void {

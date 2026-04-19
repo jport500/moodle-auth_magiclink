@@ -56,7 +56,7 @@ class observer {
             return;
         }
 
-        if ((int)$user->suspended === 1 || $user->auth !== 'magiclink') {
+        if ((int)$user->suspended === 1 || !api::is_auth_allowed($user)) {
             $tm = new token_manager();
             $tm->revoke_all_for_user($userid);
         }

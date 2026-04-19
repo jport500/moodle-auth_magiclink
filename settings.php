@@ -88,16 +88,33 @@ if ($ADMIN->fulltree) {
     // plugins. Users whose user.auth is in this list may request magic
     // links; admins (has moodle/site:config) are always excluded by the
     // login controller regardless of this setting.
+    //
+    // The fresh-install default is all currently-enabled auth plugins
+    // plus 'magiclink' itself — we ship that auth method and users with
+    // auth='magiclink' must be eligible by definition, even though the
+    // admin enables this plugin after settings.php first loads. Other
+    // auth plugins enabled after install still require admin opt-in
+    // (they were not part of "currently enabled" at install time).
     $authoptions = [];
     $enabledauths = \core\plugininfo\auth::get_enabled_plugins() ?: [];
     foreach (array_keys($enabledauths) as $shortname) {
         $authoptions[$shortname] = get_string('pluginname', 'auth_' . $shortname);
     }
+    $defaultallowed = array_keys($enabledauths);
+    if (!in_array('magiclink', $defaultallowed, true)) {
+        $defaultallowed[] = 'magiclink';
+    }
+    // The 'magiclink' option itself must exist in the options array or
+    // the admin_setting_configmultiselect default will be silently
+    // trimmed by option validation.
+    if (!isset($authoptions['magiclink'])) {
+        $authoptions['magiclink'] = get_string('pluginname', 'auth_magiclink');
+    }
     $settings->add(new admin_setting_configmultiselect(
         'auth_magiclink/allowed_auth_methods',
         get_string('setting_allowedauthmethods', 'auth_magiclink'),
         get_string('setting_allowedauthmethods_desc', 'auth_magiclink'),
-        array_keys($enabledauths),
+        $defaultallowed,
         $authoptions
     ));
 

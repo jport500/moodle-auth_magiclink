@@ -117,4 +117,44 @@ final class api_test extends \advanced_testcase {
         $count2 = api::revoke_user_tokens($user->id);
         $this->assertEquals(0, $count2);
     }
+
+    /**
+     * Unset config (fresh install, never saved): is_auth_allowed falls
+     * back to all currently-enabled auth plugins. A 'manual' user
+     * qualifies because manual auth is always enabled in Moodle core.
+     */
+    public function test_is_auth_allowed_unset_falls_back_to_enabled_plugins(): void {
+        $this->resetAfterTest();
+        unset_config('allowed_auth_methods', 'auth_magiclink');
+        $user = $this->getDataGenerator()->create_user(['auth' => 'manual']);
+        $this->assertTrue(api::is_auth_allowed($user));
+    }
+
+    /**
+     * Empty string config (admin deliberately saved an empty selection):
+     * nobody qualifies — the lockdown case.
+     */
+    public function test_is_auth_allowed_empty_string_locks_everyone_out(): void {
+        $this->resetAfterTest();
+        set_config('allowed_auth_methods', '', 'auth_magiclink');
+        $magic = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $manual = $this->getDataGenerator()->create_user(['auth' => 'manual']);
+        $this->assertFalse(api::is_auth_allowed($magic));
+        $this->assertFalse(api::is_auth_allowed($manual));
+    }
+
+    /**
+     * Comma-separated config (normal case): listed methods qualify,
+     * others don't.
+     */
+    public function test_is_auth_allowed_csv_checks_membership(): void {
+        $this->resetAfterTest();
+        set_config('allowed_auth_methods', 'magiclink,manual', 'auth_magiclink');
+        $magic = $this->getDataGenerator()->create_user(['auth' => 'magiclink']);
+        $manual = $this->getDataGenerator()->create_user(['auth' => 'manual']);
+        $email = $this->getDataGenerator()->create_user(['auth' => 'email']);
+        $this->assertTrue(api::is_auth_allowed($magic));
+        $this->assertTrue(api::is_auth_allowed($manual));
+        $this->assertFalse(api::is_auth_allowed($email));
+    }
 }

@@ -96,13 +96,18 @@ final class login_controller_test extends \advanced_testcase {
     }
 
     /**
-     * (c) Non-magiclink auth: no email sent, audit 'wrong_auth', uniform message.
+     * (c) Non-allowed auth: no email sent, audit 'wrong_auth', uniform message.
+     * Narrows the v3.3 allowlist to 'magiclink' only so that 'manual' is
+     * deliberately excluded (the permissive fresh-install default
+     * includes 'manual').
      */
     public function test_rejects_non_magiclink_auth(): void {
         global $DB;
         $this->resetAfterTest();
         $this->preventResetByRollback();
         $sink = $this->redirectEmails();
+
+        set_config('allowed_auth_methods', 'magiclink', 'auth_magiclink');
 
         $this->getDataGenerator()->create_user([
             'auth' => 'manual',
@@ -116,6 +121,46 @@ final class login_controller_test extends \advanced_testcase {
 
         $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
             'email' => 'admin@school.edu',
+            'action' => 'wrong_auth',
+        ]));
+
+        $this->assertEquals(
+            get_string('linksent_uniform', 'auth_magiclink'),
+            $result['message']
+        );
+    }
+
+    /**
+     * (c+) v3.3 allowlist widening: with allowed_auth_methods set to
+     * 'magiclink,manual', a manual-auth user receives a magic link
+     * where v3.2 would have rejected them with 'wrong_auth'.
+     */
+    public function test_widened_allowlist_accepts_manual_auth(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $this->preventResetByRollback();
+        $sink = $this->redirectEmails();
+
+        set_config('allowed_auth_methods', 'magiclink,manual', 'auth_magiclink');
+
+        $this->getDataGenerator()->create_user([
+            'auth' => 'manual',
+            'email' => 'alice@school.edu',
+        ]);
+
+        $result = login_controller::handle_request('alice@school.edu', '10.0.0.1');
+
+        // Email sent — manual is on the allowlist.
+        $this->assertCount(1, $sink->get_messages());
+        $sink->close();
+
+        // Audit row is 'send_link', not 'wrong_auth'.
+        $this->assertTrue($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'alice@school.edu',
+            'action' => 'send_link',
+        ]));
+        $this->assertFalse($DB->record_exists('auth_magiclink_audit', [
+            'email' => 'alice@school.edu',
             'action' => 'wrong_auth',
         ]));
 

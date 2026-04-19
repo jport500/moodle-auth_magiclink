@@ -84,9 +84,11 @@ class login_controller {
             return $uniformresult;
         }
 
-        // User lookup — must exist, be active, and use magiclink auth.
+        // User lookup — must exist, be active, and have an auth method
+        // on the v3.3 allowlist (api::is_auth_allowed — see classes/api.php
+        // for the three-state logic).
         $user = $DB->get_record('user', ['email' => $email, 'deleted' => 0, 'suspended' => 0]);
-        if (!$user || $user->auth !== 'magiclink') {
+        if (!$user || !api::is_auth_allowed($user)) {
             $action = !$user ? 'no_user' : 'wrong_auth';
             audit::log($user->id ?? null, $email, $action, '', $ip);
             $limiter->record($email, $ip);

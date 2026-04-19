@@ -76,6 +76,21 @@ class verify_controller {
             ];
         }
 
+        // Re-check the allowlist at verify time. A token issued when the
+        // user's auth was allowed must be rejected if the allowlist has
+        // since been narrowed to exclude them. Token TTLs are short
+        // (15 min default) so the exposure window is acceptable; no eager
+        // revocation on allowlist change (see docs/DECISIONS.md, v3.3).
+        if (!api::is_auth_allowed($user)) {
+            audit::log($user->id, $user->email, 'login_failed', 'Auth method not allowed.', $ip);
+            return [
+                'url' => $loginurl,
+                'message' => $genericerror,
+                'messagetype' => \core\output\notification::NOTIFY_ERROR,
+                'loggedin' => false,
+            ];
+        }
+
         // Magic link verification is itself proof of identity.
         // Clear any forcepasswordchange flag before complete_user_login
         // reloads preferences — auth_magiclink does not provide a
