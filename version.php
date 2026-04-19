@@ -28,4 +28,4 @@ $plugin->version   = 2026060100;
 $plugin->requires  = 2024040100;
 $plugin->component = 'auth_magiclink';
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = 'v3.2';
+$plugin->release   = 'v3.3';

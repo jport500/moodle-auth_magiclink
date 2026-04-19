@@ -1,5 +1,97 @@
 # Changelog
 
+## v3.3 (2026-04-19)
+
+Configurable auth-method allowlist replaces the v3.0–v3.2 hardcoded
+`auth='magiclink'` restriction. Customer feedback after `local_welcomeemail`
+v1.0 shipped showed the hardcoded check created support burden on
+mixed-auth deployments — operators wanted magic-link login to work
+across auth methods with equivalent security posture.
+
+### Features
+
+- New setting `allowed_auth_methods` — admin-configurable multiselect
+  of enabled auth plugins. Users whose `auth` field is on the list
+  may request magic links.
+- Fresh-install default: all currently-enabled auth plugins PLUS
+  `magiclink` (the plugin's own auth method). Permissive for new
+  deployments.
+- Upgrade-from-v3.2 default: `magiclink` only. Existing deployments
+  see no behavior change until an admin widens the allowlist.
+- Admin-capability exclusion is hardcoded and non-configurable. Users
+  with `moodle/site:config` are always blocked from magic-link login
+  regardless of allowlist contents. Threat model: an attacker who
+  compromises an admin's email inbox must not be able to convert
+  that into an admin session. See `docs/DECISIONS.md` entry 2.
+- Verify-time re-check: tokens issued under a wider allowlist or
+  before the user gained admin capability are rejected at verify time
+  if the allowlist has narrowed or the user has become admin. Short
+  TTLs bound the exposure window.
+
+### New audit actions
+
+- `admin_blocked` — emitted at both login request and token verify
+  when the user has `moodle/site:config`. A distinct action (not
+  `wrong_auth`) so operators can filter for admin-magic-link attempts
+  as a security-sensitive signal. Admin-first ordering: admin users
+  always surface as `admin_blocked` regardless of whether their auth
+  method is also off the allowlist. See `docs/DECISIONS.md` entry 3.
+- `wrong_auth` is now emitted at verify time as well as at login
+  request. Pre-v3.3, verify-time rejections used `login_failed` with
+  an info-column reason string; v3.3 normalizes allowlist rejections
+  to the `wrong_auth` top-level action in both controllers. Operators
+  with existing audit queries filtering by action may see increased
+  `wrong_auth` volume post-v3.3 (both controllers emit it now).
+  `login_failed` remains reserved for token-integrity failures
+  (invalid, expired, used) at verify time.
+
+### Configuration
+
+- `allowed_auth_methods` at Site Administration > Plugins >
+  Authentication > Magic Link. Multiselect; empty selection is
+  honored as a deliberate lockdown.
+- New auth plugins enabled on a site AFTER auth_magiclink install
+  do not automatically join the allowlist. Admins must opt in by
+  editing the setting.
+
+### Migration notes
+
+- Upgrade from v3.2 writes `allowed_auth_methods = 'magiclink'` for
+  existing installs via `db/upgrade.php`. Pre-v3.3 behavior
+  preserved. Three PHPUnit tests cover the upgrade path.
+- No schema changes. Version bump: 2026051800 → 2026060100.
+  Release: v3.2 → v3.3. Maturity unchanged (STABLE).
+- Version number is a monotonic integer, not a calendar-accurate
+  date. See `docs/DECISIONS.md` entry 7 for the historical context.
+
+### Internal changes
+
+- New public API `\auth_magiclink\api::is_auth_allowed(\stdClass $user)`
+  — allowlist check with three-state logic (unset fallback, empty
+  lockdown, CSV membership).
+- New public API `\auth_magiclink\api::is_admin_user(\stdClass $user)`
+  — admin-capability check.
+- `login_controller`, `verify_controller`, and `observer` all call
+  the shared helpers; hardcoded `auth !== 'magiclink'` removed.
+- Admin-first ordering at login and verify (admin check before
+  allowlist check) for audit-log clarity.
+- Observer revokes tokens when a user's auth method leaves the
+  allowlist (not just when it stops being `magiclink`). Capability
+  grants don't fire user_updated, so observer doesn't cover the
+  admin-capability window — verify-time enforcement is the single
+  covering point for that.
+
+### Dependencies
+
+- Unchanged from v3.2.
+
+### New architectural-decisions document
+
+- `docs/DECISIONS.md` (new) captures the seven v3.3 design decisions
+  with alternatives considered, reasoning, and "would revisit if"
+  triggers. Future developers returning to this code should read
+  that file first.
+
 ## v3.2 (2026-04-17)
 
 Small feature addition for integration with external plugins.
@@ -19,7 +111,7 @@ Small feature addition for integration with external plugins.
   common in other web apps. Not a new attack surface;
   documented for transparency.
 
-## v3.1 (2026-05-17)
+## v3.1 (2026-04-16)
 
 Bug fixes.
 
@@ -39,7 +131,7 @@ Documentation.
   login requires `auth='magiclink'` on the user profile, with
   guidance on how to enable it for existing users.
 
-## v3.0 (2026-05-16)
+## v3.0 (2026-04-16)
 
 Security hardening rewrite. Addresses all 26 findings from the v2
 audit. PHP-level rewrite around service classes; schema and URL
